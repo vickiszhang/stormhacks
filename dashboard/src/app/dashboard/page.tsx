@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { ApplicationData } from "@/data/sample-applications-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -45,6 +45,8 @@ export default function Dashboard() {
   const [applications, setApplications] = useState<ApplicationData[]>([]);
 
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
+  const [currentInsight, setCurrentInsight] = useState<{ company: string; role: string } | null>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -78,22 +80,18 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    // Find applications with past interview dates that haven't been updated to offer/rejected
+    // Find all applications that are not rejected or accepted
     if (applications.length === 0) return;
 
-    const today = new Date();
-    const pastInterviews = applications
+    const pendingApps = applications
       .map((app, index) => {
-        if (app.DateInterview && !app.DateAccepted && !app.DateRejected) {
-          const interviewDate = new Date(app.DateInterview);
-          if (interviewDate < today) {
-            return {
-              index,
-              role: app.Role,
-              company: app.Company,
-              interviewDate: app.DateInterview,
-            };
-          }
+        if (!app.DateAccepted && !app.DateRejected) {
+          return {
+            index,
+            role: app.Role,
+            company: app.Company,
+            interviewDate: app.DateInterview || "",
+          };
         }
         return null;
       })
@@ -108,8 +106,8 @@ export default function Dashboard() {
         } => item !== null
       );
 
-    if (pastInterviews.length > 0) {
-      setPendingInterviews(pastInterviews);
+    if (pendingApps.length > 0) {
+      setPendingInterviews(pendingApps);
       setIsFollowUpDialogOpen(true);
     }
   }, [applications]);
@@ -177,24 +175,87 @@ export default function Dashboard() {
     }
   };
 
-  const testGemini = async () => {
+  const analyzeResume = async (applicationId: string, customPrompt?: string) => {
     try {
       setIsDialogOpen(true);
       setIsLoading(true);
       setGeminiResponse("");
+      setCurrentInsight(null);
 
-      const response = await fetch("/api/gemini", {
+      // 1. Get application details from DynamoDB
+      const appResponse = await fetch(`/api/dynamodb?applicationId=${applicationId}`);
+      const appData = await appResponse.json();
+
+      if (!appData.success || !appData.data.ResumeURL) {
+        setGeminiResponse("Error: Resume URL not found for this application");
+        setIsLoading(false);
+        return;
+      }
+
+      const application = appData.data;
+      setCurrentInsight({ company: application.Company, role: application.Role });
+
+      // 2. Get resume file from S3
+      const s3Response = await fetch(`/api/s3?s3Url=${encodeURIComponent(application.ResumeURL)}`);
+      const s3Data = await s3Response.json();
+
+      if (!s3Data.success) {
+        setGeminiResponse("Error: Failed to retrieve resume from S3");
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. Build the prompt
+      const prompt = customPrompt ||
+        `The user got an interview for ${application.Company} for role ${application.Role}. They applied with this resume attached as a file. Analyze the resume and draw insights on the strong points of the resume that passed a screening to get an interview. Make the summary about 200 words, the output should only have letters and number characters but no symbols, except quotes, commas, periods, dashes, brackets, if necessary. The output should address the candidate as "your", example "your resume is ...". Divide the output into paragraphs.`;
+
+      // 4. Send to Gemini for analysis
+      const geminiResponse = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Say hello" }),
+        body: JSON.stringify({
+          message: prompt,
+          fileData: s3Data.data,
+          mimeType: s3Data.contentType
+        }),
       });
-      const data = await response.json();
-      setGeminiResponse(data.response);
+      const geminiData = await geminiResponse.json();
+      setGeminiResponse(geminiData.response);
       setIsLoading(false);
     } catch (error) {
-      console.error("Error calling Gemini:", error);
-      setGeminiResponse("Error: Failed to get response from Gemini");
+      console.error("Error analyzing resume:", error);
+      setGeminiResponse("Error: Failed to analyze resume");
       setIsLoading(false);
+    }
+  };
+
+  const saveToInsights = async () => {
+    if (!currentInsight || !geminiResponse) return;
+
+    try {
+      const response = await fetch("/api/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company: currentInsight.company,
+          role: currentInsight.role,
+          summary: geminiResponse
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Insight saved successfully!");
+        setIsDialogOpen(false);
+        setGeminiResponse("");
+        setCurrentInsight(null);
+      } else {
+        toast.error("Failed to save insight");
+      }
+    } catch (error) {
+      console.error("Error saving insight:", error);
+      toast.error("Failed to save insight");
     }
   };
 
@@ -218,6 +279,7 @@ export default function Dashboard() {
             <Table>
               <TableBody>
                 {applications.map((application) => {
+                const isExpanded = expandedRow === application.ApplicationID;
                 return (
                   <TableRow
                     key={application.ApplicationID}
@@ -230,7 +292,7 @@ export default function Dashboard() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarFallback className="bg-gradient-to-br from-[#DB4C77] to-[#F9C6D7] text-white">
+                          <AvatarFallback className="bg-pink-dark text-white">
                             {application.Role.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
@@ -326,18 +388,32 @@ export default function Dashboard() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Insights on your application</DialogTitle>
             <p className="text-sm text-muted-foreground mt-2">
               We are analyzing your application to provide insights on the most optimal resume strategies and improve your chances of success.
             </p>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 overflow-y-auto flex-1">
             {isLoading ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <div className="flex justify-center items-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-pink-blue"></div>
+              </div>
             ) : (
-              <p>{geminiResponse}</p>
+              <>
+                <p className="text-sm">{geminiResponse}</p>
+                {geminiResponse && !geminiResponse.startsWith("Error:") && (
+                  <div className="flex gap-3 mt-6">
+                    <Button onClick={saveToInsights} className="flex-1 bg-blue-dark">
+                      Save to Insights
+                    </Button>
+                    <Button onClick={() => setIsDialogOpen(false)} variant="outline" className="flex-1">
+                      Close
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </DialogContent>
