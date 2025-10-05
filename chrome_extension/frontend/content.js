@@ -11,6 +11,11 @@ function isJobApplicationPage() {
   const title = document.title.toLowerCase();
   const bodyText = document.body.innerText.toLowerCase();
   
+  // Check if on Beacon dashboard
+  if (url.includes('localhost:3000') || url.includes('beacon-dashboard')) {
+    return { isBeaconDashboard: true };
+  }
+  
   // Exclude search pages and listings
   const excludePatterns = [
     /search/i, /results/i, /browse/i, /explore/i,
@@ -37,6 +42,12 @@ function isJobApplicationPage() {
     /linkedin\.com\/jobs\/view\//i, // LinkedIn specific job view
     /indeed\.com\/viewjob/i, // Indeed job view
     /glassdoor\.com\/job-listing/i, // Glassdoor job listing
+    /sap\.com\/.*\/job-detail/i, // SAP careers pages
+    /jobs\.sap\.com\//i, // SAP jobs site
+    /careers\.sap\.com\//i, // SAP careers site
+    /\/jobdetail\//i, // Generic job detail pages
+    /\/job-detail\//i, // Generic job detail pages with hyphen
+    /requisition.*id/i, // Pages with requisition IDs
   ];
   
   const hasJobUrl = jobUrlPatterns.some(pattern => pattern.test(url));
@@ -50,24 +61,38 @@ function isJobApplicationPage() {
   const hasJobTitle = !!(
     document.querySelector('h1') ||
     document.querySelector('[class*="job-title"]') ||
-    document.querySelector('[class*="position-title"]')
+    document.querySelector('[class*="position-title"]') ||
+    document.querySelector('[class*="jobTitle"]') ||
+    document.querySelector('[data-job-title]')
   );
   
   const hasCompanyInfo = !!(
     document.querySelector('[class*="company"]') ||
     document.querySelector('[itemprop="hiringOrganization"]') ||
-    document.querySelector('meta[property="og:site_name"]')
+    document.querySelector('meta[property="og:site_name"]') ||
+    document.querySelector('[class*="employer"]')
   );
   
   const hasApplyButton = !!(
     document.querySelector('button[class*="apply"]') ||
     document.querySelector('a[class*="apply"]') ||
     document.querySelector('[id*="apply"]') ||
-    document.querySelector('input[type="submit"][value*="apply" i]')
+    document.querySelector('input[type="submit"][value*="apply" i]') ||
+    document.querySelector('button:contains("Apply")') ||
+    document.querySelector('a:contains("Apply")')
   );
   
-  // Must have at least job title + (company info OR apply button)
-  return hasJobTitle && (hasCompanyInfo || hasApplyButton);
+  // Check for requisition ID (common in enterprise job postings)
+  const hasRequisitionId = !!(
+    bodyText.includes('requisition') ||
+    bodyText.includes('req id') ||
+    bodyText.includes('job id') ||
+    document.querySelector('[class*="requisition"]') ||
+    document.querySelector('[id*="requisition"]')
+  );
+  
+  // Must have at least job title + (company info OR apply button OR requisition ID)
+  return hasJobTitle && (hasCompanyInfo || hasApplyButton || hasRequisitionId);
 }
 
 function extractJobData() {
@@ -102,7 +127,8 @@ function extractJobData() {
   const companySelectors = [
     '[class*="company-name"]', '[class*="employer-name"]', '[id*="company"]',
     '[data-testid*="company"]', 'meta[property="og:site_name"]', 
-    '[class*="organization"]', '[itemprop="hiringOrganization"]'
+    '[class*="organization"]', '[itemprop="hiringOrganization"]',
+    '[class*="companyName"]', '[data-company]'
   ];
   for (const selector of companySelectors) {
     const el = document.querySelector(selector);
@@ -113,7 +139,25 @@ function extractJobData() {
   }
   // Fallback to domain
   if (!company) {
-    company = location.hostname.replace(/^www\./, '').split('.')[0];
+    const hostname = location.hostname.replace(/^www\./, '');
+    // Special handling for common job sites
+    if (hostname.includes('sap.com') || hostname.includes('jobs.sap')) {
+      company = 'SAP';
+    } else if (hostname.includes('greenhouse.io')) {
+      // Extract company from greenhouse URL path
+      const pathParts = location.pathname.split('/').filter(p => p);
+      company = pathParts[0] || hostname.split('.')[0];
+    } else if (hostname.includes('lever.co')) {
+      // Extract company from lever URL
+      const pathParts = location.pathname.split('/').filter(p => p);
+      company = pathParts[0] || hostname.split('.')[0];
+    } else {
+      company = hostname.split('.')[0];
+    }
+    // Capitalize first letter
+    if (company) {
+      company = company.charAt(0).toUpperCase() + company.slice(1);
+    }
   }
   
   return {
@@ -127,8 +171,19 @@ function extractJobData() {
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   if (req?.type === "CHECK_JOB_PAGE") {
     try {
-      const isJob = isJobApplicationPage();
-      if (isJob) {
+      const result = isJobApplicationPage();
+      
+      // Check if on Beacon dashboard
+      if (result?.isBeaconDashboard) {
+        sendResponse({ 
+          isJobPage: false, 
+          isBeaconDashboard: true 
+        });
+        return true;
+      }
+      
+      // Check if it's a job page
+      if (result) {
         const jobData = extractJobData();
         sendResponse(jobData);
       } else {
@@ -145,7 +200,9 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
 window.addEventListener('load', () => {
   // Wait a bit for the page to fully render
   setTimeout(() => {
-    if (isJobApplicationPage()) {
+    const result = isJobApplicationPage();
+    // Only show notification if it's a job page (not Beacon dashboard)
+    if (result && !result.isBeaconDashboard) {
       showJobDetectedNotification();
     }
   }, 1000);
@@ -164,50 +221,64 @@ function showJobDetectedNotification() {
       position: fixed;
       top: 20px;
       right: 20px;
-      background: linear-gradient(135deg, #10559A 0%, #0d4680 100%);
+      background: linear-gradient(135deg, #10559A 0%, #3CA2C8 100%);
       color: white;
-      padding: 16px 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      padding: 20px 24px;
+      border-radius: 16px;
+      box-shadow: 0 6px 24px rgba(16, 85, 154, 0.35);
       z-index: 999999;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-      min-width: 300px;
-      max-width: 400px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Arial, sans-serif;
+      min-width: 340px;
+      max-width: 420px;
       animation: slideInRight 0.3s ease-out;
+      border: 3px solid #F9C6D7;
     ">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 24px;">📋</span>
-          <span style="font-weight: 600; font-size: 16px;">Job Application Detected!</span>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="white" style="flex-shrink: 0;">
+            <circle cx="12" cy="12" r="10" fill="white" opacity="0.9"/>
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="#10559A"/>
+          </svg>
+          <span style="font-weight: 700; font-size: 18px; letter-spacing: 0.5px;">Job Detected!</span>
         </div>
         <button id="job-tracker-close" style="
           background: rgba(255, 255, 255, 0.2);
           border: none;
           color: white;
           cursor: pointer;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 18px;
+          padding: 6px 10px;
+          border-radius: 8px;
+          font-size: 22px;
           line-height: 1;
-          transition: background 0.2s;
+          transition: all 0.2s;
+          font-weight: bold;
         ">×</button>
       </div>
-      <p style="margin: 0 0 12px 0; font-size: 13px; opacity: 0.95; line-height: 1.4;">
-        Click the extension icon to track this application
+      <p style="margin: 0 0 16px 0; font-size: 14px; opacity: 0.95; line-height: 1.6; font-weight: 500;">
+        Track this application with <strong style="font-weight: 700;">Beacon</strong> - your job application navigator
       </p>
       <button id="job-tracker-action" style="
-        background: #F9C6D7;
-        color: #c2185b;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: 600;
+        background: #ffffff;
+        color: #DB4C77;
+        border: 2px solid #F9C6D7;
+        padding: 12px 20px;
+        border-radius: 10px;
+        font-weight: 700;
         cursor: pointer;
         width: 100%;
         font-size: 14px;
         transition: all 0.2s;
+        letter-spacing: 0.3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
       ">
-        📌 Track This Application
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+          <circle cx="12" cy="10" r="3"/>
+        </svg>
+        Track This Application
       </button>
     </div>
   `;
@@ -217,7 +288,7 @@ function showJobDetectedNotification() {
   style.textContent = `
     @keyframes slideInRight {
       from {
-        transform: translateX(400px);
+        transform: translateX(420px);
         opacity: 0;
       }
       to {
@@ -226,11 +297,14 @@ function showJobDetectedNotification() {
       }
     }
     #job-tracker-action:hover {
-      background: #f7b3cc !important;
+      background: #F9C6D7 !important;
+      border-color: #DB4C77 !important;
       transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(219, 76, 119, 0.3);
     }
     #job-tracker-close:hover {
-      background: rgba(255, 255, 255, 0.3) !important;
+      background: rgba(255, 255, 255, 0.35) !important;
+      transform: scale(1.1);
     }
   `;
   document.head.appendChild(style);
