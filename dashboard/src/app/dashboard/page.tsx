@@ -460,14 +460,14 @@ export default function Dashboard() {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Insights on your application</DialogTitle>
             <p className="text-sm text-muted-foreground mt-2">
               We are analyzing your application to provide insights on the most optimal resume strategies and improve your chances of success.
             </p>
           </DialogHeader>
-          <div className="py-4">
+          <div className="py-4 overflow-y-auto flex-1">
             {isLoading ? (
               <p className="text-muted-foreground">Loading...</p>
             ) : (
