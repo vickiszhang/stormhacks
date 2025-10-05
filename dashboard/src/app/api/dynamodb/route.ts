@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, ScanCommand, UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, ScanCommand, UpdateCommand, GetCommand, PutCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 
 // AWS DynamoDB Config
 const ddbClient = new DynamoDBClient({
@@ -118,6 +118,83 @@ export async function PUT(req: NextRequest) {
 
     } catch (err: any) {
         console.error('Error updating DynamoDB record:', err);
+        return NextResponse.json({
+            success: false,
+            message: err.message
+        }, { status: 500 });
+    }
+}
+
+// POST - create a new DynamoDB record
+export async function POST(req: NextRequest) {
+    try {
+        const body = await req.json();
+        const { ApplicationID, ...applicationData } = body;
+
+        if (!ApplicationID) {
+            return NextResponse.json({
+                success: false,
+                message: 'ApplicationID is required'
+            }, { status: 400 });
+        }
+
+        // Create the item with all provided data
+        const item = {
+            ApplicationID,
+            ...applicationData
+        };
+
+        const params = {
+            TableName: process.env.DYNAMODB_TABLE_NAME || 'JobApplications',
+            Item: item
+        };
+
+        await docClient.send(new PutCommand(params));
+
+        return NextResponse.json({
+            success: true,
+            data: item,
+            message: 'Application created successfully'
+        });
+
+    } catch (err: any) {
+        console.error('Error creating DynamoDB record:', err);
+        return NextResponse.json({
+            success: false,
+            message: err.message
+        }, { status: 500 });
+    }
+}
+
+// DELETE - delete a DynamoDB record
+export async function DELETE(req: NextRequest) {
+    try {
+        const { searchParams } = new URL(req.url);
+        const applicationId = searchParams.get('applicationId');
+
+        if (!applicationId) {
+            return NextResponse.json({
+                success: false,
+                message: 'applicationId parameter is required'
+            }, { status: 400 });
+        }
+
+        const params = {
+            TableName: process.env.DYNAMODB_TABLE_NAME || 'JobApplications',
+            Key: {
+                ApplicationID: applicationId
+            }
+        };
+
+        await docClient.send(new DeleteCommand(params));
+
+        return NextResponse.json({
+            success: true,
+            message: 'Application deleted successfully'
+        });
+
+    } catch (err: any) {
+        console.error('Error deleting DynamoDB record:', err);
         return NextResponse.json({
             success: false,
             message: err.message

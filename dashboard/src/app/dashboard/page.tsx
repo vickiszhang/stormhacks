@@ -32,6 +32,12 @@ export default function Dashboard() {
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
   const [editValue, setEditValue] = useState<string>("");
+  const [isAddingNew, setIsAddingNew] = useState(false);
+  const [newApplication, setNewApplication] = useState({
+    Company: "",
+    Role: "",
+    DateApplied: "",
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -44,19 +50,35 @@ export default function Dashboard() {
 
         const data = await response.json();
         const fetchedApps = data.data || data.applications || [];
-        
+
         if (fetchedApps.length === 0) {
           // Use sample data if no real data exists
-          setApplications(sampleApplicationData);
+          const sortedSampleData = [...sampleApplicationData].sort((a, b) => {
+            const dateA = new Date(a.DateApplied || 0);
+            const dateB = new Date(b.DateApplied || 0);
+            return dateB.getTime() - dateA.getTime(); // Most recent first
+          });
+          setApplications(sortedSampleData);
           setUsingSampleData(true);
         } else {
-          setApplications(fetchedApps);
+          // Sort by DateApplied with most recent first
+          const sortedApps = [...fetchedApps].sort((a, b) => {
+            const dateA = new Date(a.DateApplied || 0);
+            const dateB = new Date(b.DateApplied || 0);
+            return dateB.getTime() - dateA.getTime(); // Most recent first
+          });
+          setApplications(sortedApps);
           setUsingSampleData(false);
         }
       } catch (error) {
         console.error("Error loading applications:", error);
         // Fallback to sample data on error
-        setApplications(sampleApplicationData);
+        const sortedSampleData = [...sampleApplicationData].sort((a, b) => {
+          const dateA = new Date(a.DateApplied || 0);
+          const dateB = new Date(b.DateApplied || 0);
+          return dateB.getTime() - dateA.getTime(); // Most recent first
+        });
+        setApplications(sortedSampleData);
         setUsingSampleData(true);
       } finally {
         setIsLoadingApplications(false);
@@ -269,12 +291,18 @@ export default function Dashboard() {
         }),
       });
 
-      // Update local state
-      const updatedApps = applications.map(a =>
-        a.ApplicationID === applicationId
-          ? { ...a, [field]: dateToSave }
-          : a
-      );
+      // Update local state and re-sort if DateApplied was changed
+      const updatedApps = applications
+        .map(a =>
+          a.ApplicationID === applicationId
+            ? { ...a, [field]: dateToSave }
+            : a
+        )
+        .sort((a, b) => {
+          const dateA = new Date(a.DateApplied || 0);
+          const dateB = new Date(b.DateApplied || 0);
+          return dateB.getTime() - dateA.getTime();
+        });
       setApplications(updatedApps);
 
       toast.success("Date updated successfully");
@@ -283,6 +311,115 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Error updating date:", error);
       toast.error("Failed to update date");
+    }
+  };
+
+  const handleDeleteApplication = async (applicationId: string) => {
+    if (!confirm("Are you sure you want to delete this application? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      // Delete from database
+      const response = await fetch(`/api/dynamodb?applicationId=${encodeURIComponent(applicationId)}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state and maintain sort order
+        const updatedApps = applications
+          .filter(a => a.ApplicationID !== applicationId)
+          .sort((a, b) => {
+            const dateA = new Date(a.DateApplied || 0);
+            const dateB = new Date(b.DateApplied || 0);
+            return dateB.getTime() - dateA.getTime();
+          });
+        setApplications(updatedApps);
+
+        toast.success("Application deleted successfully");
+
+        // Close the expanded row if it was open
+        if (expandedRow === applicationId) {
+          setExpandedRow(null);
+        }
+      } else {
+        toast.error("Failed to delete application");
+      }
+    } catch (error) {
+      console.error("Error deleting application:", error);
+      toast.error("Error deleting application");
+    }
+  };
+
+  const handleAddNew = () => {
+    setIsAddingNew(true);
+    setNewApplication({
+      Company: "",
+      Role: "",
+      DateApplied: new Date().toISOString().split('T')[0], // Default to today
+    });
+  };
+
+  const handleCancelNew = () => {
+    setIsAddingNew(false);
+    setNewApplication({
+      Company: "",
+      Role: "",
+      DateApplied: "",
+    });
+  };
+
+  const handleSaveNew = async () => {
+    if (!newApplication.Company || !newApplication.Role || !newApplication.DateApplied) {
+      toast.error("Please fill in Company, Role, and Date Applied");
+      return;
+    }
+
+    try {
+      // Generate a unique ID
+      const applicationId = `app_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Create in database
+      const response = await fetch("/api/dynamodb", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ApplicationID: applicationId,
+          Company: newApplication.Company,
+          Role: newApplication.Role,
+          DateApplied: newApplication.DateApplied,
+          DateScreening: "",
+          DateInterview: "",
+          DateAccepted: "",
+          DateRejected: "",
+          Notes: "",
+          JobURL: "",
+          ResumeURL: "",
+          DidCL: false,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Add to local state and re-sort
+        const updatedApps = [...applications, data.data].sort((a, b) => {
+          const dateA = new Date(a.DateApplied || 0);
+          const dateB = new Date(b.DateApplied || 0);
+          return dateB.getTime() - dateA.getTime();
+        });
+        setApplications(updatedApps);
+
+        toast.success("Application added successfully");
+        handleCancelNew();
+      } else {
+        toast.error("Failed to add application");
+      }
+    } catch (error) {
+      console.error("Error adding application:", error);
+      toast.error("Error adding application");
     }
   };
 
@@ -366,11 +503,23 @@ export default function Dashboard() {
       )}
 
       {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-[#DB4C77] to-[#10559A] bg-clip-text text-transparent">
-          Application Summary
-        </h1>
-        <p className="text-gray-600 mt-2">Track and manage your job applications</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-[#DB4C77] to-[#10559A] bg-clip-text text-transparent">
+            Application Summary
+          </h1>
+          <p className="text-gray-600 mt-2">Track and manage your job applications</p>
+        </div>
+        <Button
+          className="bg-gradient-to-r from-[#10559A] to-[#3CA2C8] hover:from-[#0d4478] hover:to-[#2e8aaa] text-white"
+          onClick={handleAddNew}
+          disabled={isAddingNew}
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add Application
+        </Button>
       </div>
 
       <Card className="border-0 shadow-lg">
@@ -382,6 +531,65 @@ export default function Dashboard() {
           ) : (
             <Table>
               <TableBody>
+                {/* Add New Application Row */}
+                {isAddingNew && (
+                  <TableRow className="bg-blue-50 border-2 border-blue-300">
+                    <TableCell colSpan={6}>
+                      <div className="flex items-center gap-4 py-2">
+                        <div className="flex-1 grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="text-xs text-gray-600 mb-1 block">Company *</label>
+                            <input
+                              type="text"
+                              value={newApplication.Company}
+                              onChange={(e) => setNewApplication({ ...newApplication, Company: e.target.value })}
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Company name"
+                              autoFocus
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-600 mb-1 block">Role *</label>
+                            <input
+                              type="text"
+                              value={newApplication.Role}
+                              onChange={(e) => setNewApplication({ ...newApplication, Role: e.target.value })}
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              placeholder="Job title"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-600 mb-1 block">Date Applied *</label>
+                            <input
+                              type="date"
+                              value={newApplication.DateApplied}
+                              onChange={(e) => setNewApplication({ ...newApplication, DateApplied: e.target.value })}
+                              className="w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={handleSaveNew}
+                            className="bg-green-500 hover:bg-green-600 text-white"
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleCancelNew}
+                            variant="outline"
+                            className="border-gray-300"
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+
                 {applications.map((application) => {
                 const isExpanded = expandedRow === application.ApplicationID;
                 return (
@@ -498,6 +706,22 @@ export default function Dashboard() {
                               <p className="text-sm text-gray-600">{application.Notes}</p>
                             </div>
                           )}
+
+                          {/* Delete Button */}
+                          <div className="pt-4 border-t border-gray-200">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteApplication(application.ApplicationID);
+                              }}
+                              className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700 font-medium transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                              Delete this application
+                            </button>
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>

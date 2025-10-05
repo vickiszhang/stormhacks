@@ -11,8 +11,13 @@ interface ResumeVersion {
   role: string;
   dateApplied: string;
   resumeUrl: string;
+  jobUrl?: string;
   extractedText?: string;
   analysisGenerated?: boolean;
+  dateAccepted?: string;
+  dateRejected?: string;
+  dateScreening?: string;
+  dateInterview?: string;
 }
 
 interface ResumeDiff {
@@ -53,6 +58,11 @@ export default function ResumeInsightsPage() {
           role: app.Role,
           dateApplied: app.DateApplied,
           resumeUrl: app.ResumeURL,
+          jobUrl: app.JobURL,
+          dateAccepted: app.DateAccepted,
+          dateRejected: app.DateRejected,
+          dateScreening: app.DateScreening,
+          dateInterview: app.DateInterview,
         }));
 
       setResumes(resumeData);
@@ -111,12 +121,25 @@ export default function ResumeInsightsPage() {
       const added = lines2.filter(line => !lines1.includes(line));
       const removed = lines1.filter(line => !lines2.includes(line));
 
-      // Call Gemini API with file attachments for AI analysis
-      const aiResponse = await fetch("/api/gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: `I'm comparing two resume versions. Please analyze the differences between these two resumes:
+      // Call Gemini API with file attachments and job URL for AI analysis
+      const promptMessage = resume2.jobUrl
+        ? `I'm comparing two resume versions for a specific job application. Please analyze the job posting at the URL provided, then compare these two resumes:
+
+Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()}
+Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()}
+Job Posting URL: ${resume2.jobUrl}
+
+Please provide insights on:
+1. What specific changes were made between the two resumes (skills, experience, formatting, content modifications)
+2. How well the changes align with the job description and requirements from the job posting
+3. What strengths from the resume match the job requirements (be specific about which skills/experiences align)
+4. What improvements could be made to better match the job description
+5. Specific, actionable suggestions for optimization
+
+The response should be personal and directed towards the candidate, e.g. "you can improve ..." rather than "the candidate can improve"
+
+Keep the response well-structured, concise to about 200-250 words, and actionable. Keep the response including tailored insights on the specific resumes that we are comparing, and company, and job function. Do not include any asterisks * characters in the response.`
+        : `I'm comparing two resume versions. Please analyze the differences between these two resumes:
 
 Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()}
 Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()}
@@ -129,7 +152,14 @@ Please provide insights on:
 
 The response should be personal and directed towards the candidate, e.g. "you can improve ..." rather than "the candidate can improve"
 
-Keep the response well-structured, concise, and actionable. Do not include any asterisks * characters in the response.`,
+Keep the response well-structured, concise to about 200-250 words, and actionable. Keep the response including tailored insights on the specific resumes that we are comparing, and company, and job function. Do not include any asterisks * characters in the response.`;
+
+      const aiResponse = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: promptMessage,
+          url: resume2.jobUrl || undefined,
           files: [
             {
               fileData: s3Data1.data,
@@ -168,6 +198,19 @@ Keep the response well-structured, concise, and actionable. Do not include any a
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+
+  const getApplicationStatus = (resume: ResumeVersion) => {
+    if (resume.dateAccepted) {
+      return { color: "bg-green-500", label: "Offer", textColor: "text-green-700" };
+    }
+    if (resume.dateRejected) {
+      return { color: "bg-red-500", label: "Rejected", textColor: "text-red-700" };
+    }
+    if (resume.dateInterview || resume.dateScreening) {
+      return { color: "bg-yellow-500", label: resume.dateInterview ? "Interview" : "Screening", textColor: "text-yellow-700" };
+    }
+    return { color: "bg-blue-500", label: "Applied", textColor: "text-blue-700" };
   };
 
   // Find the previous resume with a different URL
@@ -242,6 +285,7 @@ Keep the response well-structured, concise, and actionable. Do not include any a
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {resumes.map((resume, index) => {
                     const previousDifferentResume = findPreviousDifferentResume(index);
+                    const status = getApplicationStatus(resume);
 
                     return (
                       <div
@@ -250,16 +294,22 @@ Keep the response well-structured, concise, and actionable. Do not include any a
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900">{resume.role}</h4>
+                            <h4 className="font-semibold text-gray-900 mb-1">{resume.role}</h4>
                             <p className="text-sm text-gray-600">{resume.company}</p>
                             <p className="text-xs text-gray-500 mt-1">
                               Applied: {formatDate(resume.dateApplied)}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col items-end gap-2">
                             <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
                               v{resumes.length - index}
                             </span>
+                            <div className="flex items-center gap-1">
+                              <div className={`w-2 h-2 rounded-full ${status.color}`}></div>
+                              <span className={`text-xs font-medium ${status.textColor}`}>
+                                {status.label}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         {previousDifferentResume && (
