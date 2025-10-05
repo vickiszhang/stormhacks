@@ -38,6 +38,7 @@ export default function Dashboard() {
       role: string;
       company: string;
       interviewDate: string;
+      dateLabel: string;
     }>
   >([]);
   const [currentFollowUpIndex, setCurrentFollowUpIndex] = useState(0);
@@ -89,22 +90,33 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    // Find applications with past interview dates that haven't been updated to offer/rejected
+    // Find applications that haven't been accepted or rejected
     if (applications.length === 0) return;
 
-    const today = new Date();
-    const pastInterviews = applications
+    const pendingApps = applications
       .map((app, index) => {
-        if (app.DateInterview && !app.DateAccepted && !app.DateRejected) {
-          const interviewDate = new Date(app.DateInterview);
-          if (interviewDate < today) {
-            return {
-              index,
-              role: app.Role,
-              company: app.Company,
-              interviewDate: app.DateInterview,
-            };
+        if (!app.DateAccepted && !app.DateRejected) {
+          // Use interview date if available, otherwise screen date, otherwise app date
+          let displayDate = app.DateInterview;
+          let dateLabel = "Interview Date";
+
+          if (!displayDate) {
+            displayDate = app.DateScreening;
+            dateLabel = "Screen Date";
           }
+
+          if (!displayDate) {
+            displayDate = app.DateApplied;
+            dateLabel = "Application Date";
+          }
+
+          return {
+            index,
+            role: app.Role,
+            company: app.Company,
+            interviewDate: displayDate || "",
+            dateLabel,
+          };
         }
         return null;
       })
@@ -116,11 +128,12 @@ export default function Dashboard() {
           role: string;
           company: string;
           interviewDate: string;
+          dateLabel: string;
         } => item !== null
       );
 
-    if (pastInterviews.length > 0) {
-      setPendingInterviews(pastInterviews);
+    if (pendingApps.length > 0) {
+      setPendingInterviews(pendingApps);
       setIsFollowUpDialogOpen(true);
     }
   }, [applications]);
@@ -396,7 +409,7 @@ export default function Dashboard() {
                     ?
                   </p>
                   <p className="text-sm text-muted-foreground mb-6">
-                    Interview Date:{" "}
+                    {pendingInterviews[currentFollowUpIndex].dateLabel}:{" "}
                     {formatDate(
                       pendingInterviews[currentFollowUpIndex].interviewDate
                     )}
