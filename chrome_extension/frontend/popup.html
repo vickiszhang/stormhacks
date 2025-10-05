@@ -21,12 +21,24 @@
         display: flex;
         flex-direction: column;
         background: #ffffff;
+        border-radius: 10px;
+        overflow: hidden;
       }
 
       .header {
-        background: linear-gradient(135deg, #10559A 0%, #3CA2C8 100%);
         padding: 24px 20px;
         text-align: center;
+        filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
+        transition: background 0.3s ease;
+      }
+
+      .header.pink {
+        background: linear-gradient(135deg, #DB4C77 0%, #F9C6D7 100%);
+        border-bottom: 3px solid #10559A;
+      }
+
+      .header.blue {
+        background: linear-gradient(135deg, #10559A 0%, #3CA2C8 100%);
         border-bottom: 3px solid #F9C6D7;
       }
 
@@ -38,6 +50,7 @@
         width: 56px;
         height: 56px;
         filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.15));
+        border-radius: 12px;
       }
 
       .header h2 {
@@ -239,21 +252,28 @@
         box-shadow: none;
       }
 
-      #refresh-btn {
+      #refresh-btn, .retry-btn {
         background: #ffffff;
         color: #DB4C77;
         border: 2px solid #F9C6D7;
       }
 
-      #refresh-btn:hover {
+      #refresh-btn:hover, .retry-btn:hover {
         background: #F9C6D7;
         color: #ffffff;
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(249, 198, 215, 0.4);
       }
 
-      #refresh-btn:active {
+      #refresh-btn:active, .retry-btn:active {
         transform: translateY(0);
+      }
+
+      .standalone-refresh-btn {
+        width: 100%;
+        max-width: 200px;
+        margin: 20px auto;
+        display: block;
       }
 
       .loading {
@@ -318,7 +338,7 @@
   </head>
   <body>
     <div class="container">
-      <div class="header">
+      <div class="header pink">
         <div class="icon-container">
           <img src="icon.png" alt="Beacon">
         </div>
