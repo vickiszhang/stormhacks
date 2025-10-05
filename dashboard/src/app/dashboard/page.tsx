@@ -177,7 +177,7 @@ export default function Dashboard() {
     }
   };
 
-  const analyzeResume = async (applicationId: string) => {
+  const analyzeResume = async (applicationId: string, customPrompt?: string) => {
     try {
       setIsDialogOpen(true);
       setIsLoading(true);
@@ -193,8 +193,10 @@ export default function Dashboard() {
         return;
       }
 
+      const application = appData.data;
+
       // 2. Get resume file from S3
-      const s3Response = await fetch(`/api/s3?s3Url=${encodeURIComponent(appData.data.ResumeURL)}`);
+      const s3Response = await fetch(`/api/s3?s3Url=${encodeURIComponent(application.ResumeURL)}`);
       const s3Data = await s3Response.json();
 
       if (!s3Data.success) {
@@ -203,12 +205,16 @@ export default function Dashboard() {
         return;
       }
 
-      // 3. Send to Gemini for analysis
+      // 3. Build the prompt
+      const prompt = customPrompt ||
+        `The user got an interview for ${application.Company} for role ${application.Role}. They applied with this resume attached as a file. Analyze the resume and draw insights on the strong points of the resume that passed a screening to get an interview. Make the summary about 200 words, the output should only have letters and number characters but no symbols, except quotes, commas, periods, dashes, brackets, if necessary. The output should address the candidate as "your", example "your resume is ...". Divide the output into paragraphs.`;
+
+      // 4. Send to Gemini for analysis
       const geminiResponse = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          message: "Please provide a short summary of this resume, highlighting key skills and experience.",
+          message: prompt,
           fileData: s3Data.data,
           mimeType: s3Data.contentType
         }),
@@ -323,18 +329,20 @@ export default function Dashboard() {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <TooltipProvider>
-                        <Tooltip >
-                          <TooltipTrigger asChild>
-                            <div onClick={() => analyzeResume(application.ApplicationID)} className="cursor-pointer">
-                              <LightBulb />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent className="bg-blue-dark text-white border-blue-dark">
-                            <p>Get insights on your application.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
+                      {application.DateInterview && (
+                        <TooltipProvider>
+                          <Tooltip >
+                            <TooltipTrigger asChild>
+                              <div onClick={() => analyzeResume(application.ApplicationID)} className="cursor-pointer">
+                                <LightBulb />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-blue-dark text-white border-blue-dark">
+                              <p>Get insights on your application.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -357,7 +365,7 @@ export default function Dashboard() {
             {isLoading ? (
               <p className="text-muted-foreground">Loading...</p>
             ) : (
-              <p>{geminiResponse}</p>
+              <p className="text-sm">{geminiResponse}</p>
             )}
           </div>
         </DialogContent>
