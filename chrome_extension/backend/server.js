@@ -108,7 +108,7 @@ app.post('/upload-job', upload.single('resume'), async (req, res) => {
 // Endpoint to check for duplicate applications
 app.post('/check-duplicate', async (req, res) => {
     try {
-        const { jobURL } = req.body;
+        const { jobURL, role, company } = req.body;
         
         if (!jobURL) {
             return res.json({ 
@@ -117,8 +117,9 @@ app.post('/check-duplicate', async (req, res) => {
             });
         }
 
-        // Scan DynamoDB for existing application with same job URL
-        const params = {
+        // STEP 1: Check for exact URL match
+        console.log('🔍 Checking for duplicate - URL:', jobURL);
+        const urlParams = {
             TableName: 'JobApplications',
             FilterExpression: 'JobURL = :url',
             ExpressionAttributeValues: {
@@ -126,31 +127,80 @@ app.post('/check-duplicate', async (req, res) => {
             }
         };
 
-        const result = await docClient.send(new ScanCommand(params));
+        const urlResult = await docClient.send(new ScanCommand(urlParams));
         
-        if (result.Items && result.Items.length > 0) {
-            const existingApp = result.Items[0];
+        if (urlResult.Items && urlResult.Items.length > 0) {
+            const existingApp = urlResult.Items[0];
+            console.log('✅ Found duplicate by URL:', existingApp.ApplicationID);
             return res.json({
                 isDuplicate: true,
+                matchType: 'url',
                 existingApplication: {
                     role: existingApp.Role,
                     company: existingApp.Company,
                     dateApplied: existingApp.DateApplied,
                     applicationID: existingApp.ApplicationID
                 },
-                message: `You already tracked an application for ${existingApp.Role} at ${existingApp.Company} on ${existingApp.DateApplied || 'an earlier date'}.`
+                message: `You already tracked this exact job posting for ${existingApp.Role} at ${existingApp.Company} on ${existingApp.DateApplied || 'an earlier date'}.`
             });
         }
 
+        // STEP 2: If no URL match and role/company provided, check for same role within same month
+        if (role && company) {
+            console.log('🔍 No URL match. Checking for same role in same month:', { role, company });
+            
+            // Get current month range
+            const now = new Date();
+            const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+            
+            console.log('📅 Current month range:', firstDayOfMonth, 'to', lastDayOfMonth);
+            
+            // Scan for matching role and company within current month
+            const roleParams = {
+                TableName: 'JobApplications',
+                FilterExpression: 'Role = :role AND Company = :company AND DateApplied BETWEEN :startDate AND :endDate',
+                ExpressionAttributeValues: {
+                    ':role': role,
+                    ':company': company,
+                    ':startDate': firstDayOfMonth,
+                    ':endDate': lastDayOfMonth
+                }
+            };
+
+            const roleResult = await docClient.send(new ScanCommand(roleParams));
+            
+            if (roleResult.Items && roleResult.Items.length > 0) {
+                const existingApp = roleResult.Items[0];
+                console.log('✅ Found duplicate by role/company in same month:', existingApp.ApplicationID);
+                return res.json({
+                    isDuplicate: true,
+                    matchType: 'role_month',
+                    existingApplication: {
+                        role: existingApp.Role,
+                        company: existingApp.Company,
+                        dateApplied: existingApp.DateApplied,
+                        applicationID: existingApp.ApplicationID,
+                        jobURL: existingApp.JobURL
+                    },
+                    message: `You already applied to ${existingApp.Role} at ${existingApp.Company} this month on ${existingApp.DateApplied}. This might be the same position.`
+                });
+            }
+            
+            console.log('✅ No duplicates found by role/company in same month');
+        }
+
+        console.log('✅ No duplicates found');
         res.json({ 
             isDuplicate: false,
             message: 'No duplicate found'
         });
     } catch (err) {
-        console.error('Error checking for duplicate:', err);
+        console.error('❌ Error checking for duplicate:', err);
         res.status(500).json({ 
             isDuplicate: false,
-            message: 'Error checking for duplicates'
+            message: 'Error checking for duplicates',
+            error: err.message
         });
     }
 });
