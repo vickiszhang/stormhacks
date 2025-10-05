@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { sampleApplicationData } from "@/data/sample-applications-data";
 
 interface ResumeVersion {
   id: string;
@@ -32,6 +33,7 @@ export default function ResumeInsightsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedComparison, setSelectedComparison] = useState<ResumeDiff | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [usingSampleData, setUsingSampleData] = useState(false);
 
   useEffect(() => {
     fetchResumes();
@@ -43,8 +45,9 @@ export default function ResumeInsightsPage() {
       const response = await fetch("/api/dynamodb");
       const data = await response.json();
       
-      const resumeData: ResumeVersion[] = data.applications
-        ?.filter((app: any) => app.ResumeURL)
+      const fetchedApps = data.data || data.applications || [];
+      const resumeData: ResumeVersion[] = fetchedApps
+        .filter((app: any) => app.ResumeURL)
         .map((app: any) => ({
           id: app.ApplicationID,
           applicationId: app.ApplicationID,
@@ -52,11 +55,41 @@ export default function ResumeInsightsPage() {
           role: app.Role,
           dateApplied: app.DateApplied,
           resumeUrl: app.ResumeURL,
-        })) || [];
+        }));
 
-      setResumes(resumeData);
+      if (resumeData.length === 0) {
+        // Use sample data if no real data with resumes
+        const sampleResumes = sampleApplicationData
+          .filter(app => app.ResumeURL)
+          .map(app => ({
+            id: app.ApplicationID,
+            applicationId: app.ApplicationID,
+            company: app.Company,
+            role: app.Role,
+            dateApplied: app.DateApplied,
+            resumeUrl: app.ResumeURL,
+          }));
+        setResumes(sampleResumes);
+        setUsingSampleData(true);
+      } else {
+        setResumes(resumeData);
+        setUsingSampleData(false);
+      }
     } catch (error) {
       console.error("Error fetching resumes:", error);
+      // Fallback to sample data on error
+      const sampleResumes = sampleApplicationData
+        .filter(app => app.ResumeURL)
+        .map(app => ({
+          id: app.ApplicationID,
+          applicationId: app.ApplicationID,
+          company: app.Company,
+          role: app.Role,
+          dateApplied: app.DateApplied,
+          resumeUrl: app.ResumeURL,
+        }));
+      setResumes(sampleResumes);
+      setUsingSampleData(true);
     } finally {
       setIsLoading(false);
     }
@@ -143,6 +176,24 @@ Keep the response concise and actionable.`,
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      {/* Sample Data Banner */}
+      {usingSampleData && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-[#3CA2C8]/10 to-[#10559A]/10 border border-[#3CA2C8] rounded-lg">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 text-[#10559A] mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 className="font-semibold text-[#10559A] mb-1">Using Sample Data</h3>
+              <p className="text-sm text-gray-600">
+                No resume data found in DynamoDB. Showing sample resumes to demonstrate features. 
+                Upload resumes with your applications to see AI-powered insights here.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-[#DB4C77] to-[#10559A] bg-clip-text text-transparent">

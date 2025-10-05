@@ -68,49 +68,75 @@ async function checkJobPage() {
       }
 
       if (!response || !response.isJobPage) {
-        // Check if on Beacon dashboard
-        if (response?.isBeaconDashboard) {
-          // Set header to blue (on Beacon!)
-          header.classList.remove('pink');
-          header.classList.add('blue');
+        // Check if we're on Beacon website
+        if (response && response.isBeacon) {
+          // Set header to special gradient (pink to blue)
+          header.classList.remove('blue');
+          header.classList.add('pink');
           
           contentDiv.innerHTML = `
-            <div class="status-banner job-detected" style="background: linear-gradient(135deg, #10559A 0%, #3CA2C8 100%);">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="white" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="white" stroke-width="2" fill="none"/>
-                <circle cx="12" cy="10" r="3" stroke="white" stroke-width="2" fill="none"/>
+            <div style="
+              background: linear-gradient(135deg, #DB4C77 0%, #10559A 100%);
+              color: white;
+              padding: 20px;
+              border-radius: 10px;
+              text-align: center;
+              margin-bottom: 20px;
+              box-shadow: 0 4px 12px rgba(219, 76, 119, 0.3);
+            ">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" style="margin: 0 auto 12px;">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
               </svg>
-              Welcome to Beacon!
-            </div>
-            <div style="padding: 30px 20px; text-align: center;">
-              <div style="margin-bottom: 20px;">
-                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="url(#gradient)" stroke-width="2" style="display: inline-block;">
-                  <defs>
-                    <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" style="stop-color:#DB4C77;stop-opacity:1" />
-                      <stop offset="100%" style="stop-color:#10559A;stop-opacity:1" />
-                    </linearGradient>
-                  </defs>
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                  <circle cx="12" cy="10" r="3"/>
-                </svg>
-              </div>
-              <h3 style="font-size: 18px; font-weight: 700; color: #10559A; margin-bottom: 12px;">
-                You're on your dashboard!
-              </h3>
-              <p style="color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
-                Navigate to a job posting on LinkedIn, Indeed, or company career pages to start tracking applications with Beacon.
+              <h3 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">Welcome to Beacon!</h3>
+              <p style="font-size: 14px; opacity: 0.95; line-height: 1.5;">
+                You're currently on your Beacon dashboard. Navigate to a job posting to start tracking applications.
               </p>
-              <div style="background: linear-gradient(135deg, rgba(219, 76, 119, 0.1) 0%, rgba(16, 85, 154, 0.1) 100%); border-radius: 10px; padding: 16px; margin-top: 20px;">
-                <p style="font-size: 12px; color: #666; margin: 0;">
-                  <strong style="color: #10559A;">💡 Tip:</strong> Keep this dashboard open in one tab while browsing jobs in another. Beacon will automatically detect job postings!
-                </p>
-              </div>
+            </div>
+            
+            <div style="background: #f8f9fa; border-radius: 10px; padding: 16px; margin-bottom: 16px;">
+              <h4 style="font-size: 14px; font-weight: 600; color: #333; margin-bottom: 12px;">Quick Tips:</h4>
+              <ul style="list-style: none; padding: 0; margin: 0; font-size: 13px; color: #666;">
+                <li style="padding: 8px 0; border-bottom: 1px solid #e0e0e0;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10559A" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Browse LinkedIn, Indeed, or company career pages
+                </li>
+                <li style="padding: 8px 0; border-bottom: 1px solid #e0e0e0;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10559A" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Beacon will auto-detect job postings
+                </li>
+                <li style="padding: 8px 0;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10559A" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  Click the Beacon icon to track your application
+                </li>
+              </ul>
+            </div>
+
+            <div style="text-align: center;">
+              <a href="https://localhost:3000/dashboard" target="_blank" style="
+                display: inline-block;
+                background: linear-gradient(135deg, #10559A 0%, #3CA2C8 100%);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 10px;
+                text-decoration: none;
+                font-weight: 600;
+                font-size: 14px;
+                transition: transform 0.2s;
+              " onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                View Dashboard
+              </a>
             </div>
           `;
           return;
         }
-        
+
         // Set header to pink (not a job page)
         header.classList.remove('blue');
         header.classList.add('pink');

@@ -6,15 +6,23 @@
   - Job URL
 */
 
+function isBeaconWebsite() {
+  const url = window.location.href.toLowerCase();
+  // Check if we're on localhost:3000 or your deployed Beacon domain
+  return url.includes('localhost:3000') || 
+         url.includes('beacon-tracker.vercel.app') || // Add your deployed domain
+         url.includes('beacon.app'); // Add other potential domains
+}
+
 function isJobApplicationPage() {
+  // First check if we're on Beacon website
+  if (isBeaconWebsite()) {
+    return false; // Don't detect Beacon as a job page
+  }
+
   const url = window.location.href.toLowerCase();
   const title = document.title.toLowerCase();
   const bodyText = document.body.innerText.toLowerCase();
-  
-  // Check if on Beacon dashboard
-  if (url.includes('localhost:3000') || url.includes('beacon-dashboard')) {
-    return { isBeaconDashboard: true };
-  }
   
   // Exclude search pages and listings
   const excludePatterns = [
@@ -171,26 +179,25 @@ function extractJobData() {
 chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   if (req?.type === "CHECK_JOB_PAGE") {
     try {
-      const result = isJobApplicationPage();
-      
-      // Check if on Beacon dashboard
-      if (result?.isBeaconDashboard) {
+      // Check if we're on Beacon website first
+      if (isBeaconWebsite()) {
         sendResponse({ 
           isJobPage: false, 
-          isBeaconDashboard: true 
+          isBeacon: true,
+          message: "You're on Beacon! This is your dashboard."
         });
-        return true;
+        return;
       }
-      
-      // Check if it's a job page
-      if (result) {
+
+      const isJob = isJobApplicationPage();
+      if (isJob) {
         const jobData = extractJobData();
         sendResponse(jobData);
       } else {
-        sendResponse({ isJobPage: false });
+        sendResponse({ isJobPage: false, isBeacon: false });
       }
     } catch (err) {
-      sendResponse({ isJobPage: false, error: err?.message || String(err) });
+      sendResponse({ isJobPage: false, isBeacon: false, error: err?.message || String(err) });
     }
   }
   return true; // Required for async response
@@ -200,9 +207,7 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
 window.addEventListener('load', () => {
   // Wait a bit for the page to fully render
   setTimeout(() => {
-    const result = isJobApplicationPage();
-    // Only show notification if it's a job page (not Beacon dashboard)
-    if (result && !result.isBeaconDashboard) {
+    if (isJobApplicationPage()) {
       showJobDetectedNotification();
     }
   }, 1000);
