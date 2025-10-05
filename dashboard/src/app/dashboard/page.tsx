@@ -45,6 +45,7 @@ export default function Dashboard() {
   const [applications, setApplications] = useState<ApplicationData[]>([]);
 
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
+  const [currentInsight, setCurrentInsight] = useState<{ company: string; role: string } | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -78,22 +79,18 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    // Find applications with past interview dates that haven't been updated to offer/rejected
+    // Find all applications that are not rejected or accepted
     if (applications.length === 0) return;
 
-    const today = new Date();
-    const pastInterviews = applications
+    const pendingApps = applications
       .map((app, index) => {
-        if (app.DateInterview && !app.DateAccepted && !app.DateRejected) {
-          const interviewDate = new Date(app.DateInterview);
-          if (interviewDate < today) {
-            return {
-              index,
-              role: app.Role,
-              company: app.Company,
-              interviewDate: app.DateInterview,
-            };
-          }
+        if (!app.DateAccepted && !app.DateRejected) {
+          return {
+            index,
+            role: app.Role,
+            company: app.Company,
+            interviewDate: app.DateInterview || "",
+          };
         }
         return null;
       })
@@ -108,8 +105,8 @@ export default function Dashboard() {
         } => item !== null
       );
 
-    if (pastInterviews.length > 0) {
-      setPendingInterviews(pastInterviews);
+    if (pendingApps.length > 0) {
+      setPendingInterviews(pendingApps);
       setIsFollowUpDialogOpen(true);
     }
   }, [applications]);
@@ -182,6 +179,7 @@ export default function Dashboard() {
       setIsDialogOpen(true);
       setIsLoading(true);
       setGeminiResponse("");
+      setCurrentInsight(null);
 
       // 1. Get application details from DynamoDB
       const appResponse = await fetch(`/api/dynamodb?applicationId=${applicationId}`);
@@ -194,6 +192,7 @@ export default function Dashboard() {
       }
 
       const application = appData.data;
+      setCurrentInsight({ company: application.Company, role: application.Role });
 
       // 2. Get resume file from S3
       const s3Response = await fetch(`/api/s3?s3Url=${encodeURIComponent(application.ResumeURL)}`);
@@ -226,6 +225,36 @@ export default function Dashboard() {
       console.error("Error analyzing resume:", error);
       setGeminiResponse("Error: Failed to analyze resume");
       setIsLoading(false);
+    }
+  };
+
+  const saveToInsights = async () => {
+    if (!currentInsight || !geminiResponse) return;
+
+    try {
+      const response = await fetch("/api/insights", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          company: currentInsight.company,
+          role: currentInsight.role,
+          summary: geminiResponse
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success("Insight saved successfully!");
+        setIsDialogOpen(false);
+        setGeminiResponse("");
+        setCurrentInsight(null);
+      } else {
+        toast.error("Failed to save insight");
+      }
+    } catch (error) {
+      console.error("Error saving insight:", error);
+      toast.error("Failed to save insight");
     }
   };
 
@@ -365,7 +394,19 @@ export default function Dashboard() {
             {isLoading ? (
               <p className="text-muted-foreground">Loading...</p>
             ) : (
-              <p className="text-sm">{geminiResponse}</p>
+              <>
+                <p className="text-sm">{geminiResponse}</p>
+                {geminiResponse && !geminiResponse.startsWith("Error:") && (
+                  <div className="flex gap-3 mt-6">
+                    <Button onClick={saveToInsights} className="flex-1 bg-blue-dark">
+                      Save to Insights
+                    </Button>
+                    <Button onClick={() => setIsDialogOpen(false)} variant="outline" className="flex-1">
+                      Close
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </DialogContent>
