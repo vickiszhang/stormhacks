@@ -37,6 +37,10 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-pink-light: #F9C6D7;
+  --color-pink-dark: #DB4C77;
+  --color-blue-dark: #10559A;
+  --color-blue-light: #3CA2C8;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

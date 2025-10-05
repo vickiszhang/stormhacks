@@ -162,7 +162,7 @@ export default function Dashboard() {
         <CardContent>
           {isLoadingApplications ? (
             <div className="flex justify-center items-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-dark"></div>
             </div>
           ) : (
             <Table>
@@ -180,7 +180,7 @@ export default function Dashboard() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
-                          <AvatarFallback className="bg-pink-500 text-white">
+                          <AvatarFallback className="bg-pink-dark text-white">
                             {application.Role.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
@@ -328,7 +328,7 @@ export default function Dashboard() {
                     <Button
                       variant="destructive"
                       onClick={() => handleFollowUpResponse("rejected")}
-                      className="w-full"
+                      className="w-full bg-pink-dark"
                     >
                       Rejected
                     </Button>
