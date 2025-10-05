@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { ApplicationData } from "@/data/sample-applications-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -46,6 +46,7 @@ export default function Dashboard() {
 
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
   const [currentInsight, setCurrentInsight] = useState<{ company: string; role: string } | null>(null);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -273,107 +274,183 @@ export default function Dashboard() {
             <Table>
               <TableBody>
                 {applications.map((application) => {
+                const isExpanded = expandedRow === application.ApplicationID;
                 return (
-                  <TableRow
-                    key={application.ApplicationID}
-                    className={`${
-                      application.DateRejected
-                        ? "bg-gray-100 text-muted-foreground"
-                        : ""
-                    } h-16`}
-                  >
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarFallback className="bg-pink-dark text-white">
-                            {application.Role.charAt(0)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="font-medium">{application.Role}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {application.Company}
+                  <React.Fragment key={application.ApplicationID}>
+                    <TableRow
+                      onClick={() => setExpandedRow(isExpanded ? null : application.ApplicationID)}
+                      className={`${
+                        application.DateRejected
+                          ? "bg-gray-100 text-muted-foreground"
+                          : ""
+                      } h-16 cursor-pointer hover:bg-gray-50`}
+                    >
+                      <TableCell className="w-12">
+                        <div className="flex items-center justify-center">
+                          <svg
+                            className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar>
+                            <AvatarFallback className="bg-pink-dark text-white">
+                              {application.Role.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <div className="font-medium">{application.Role}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {application.Company}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {application.DateApplied && (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Applied
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {application.DateApplied && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Applied
+                            </div>
+                            <div className="text-sm font-medium">
+                              {formatDate(application.DateApplied)}
+                            </div>
                           </div>
-                          <div className="text-sm font-medium">
-                            {formatDate(application.DateApplied)}
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {application.DateScreening && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Screen
+                            </div>
+                            <div className="text-sm font-medium">
+                              {formatDate(application.DateScreening)}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {application.DateScreening && (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Screen
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {application.DateInterview && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Interview
+                            </div>
+                            <div className="text-sm font-medium">
+                              {formatDate(application.DateInterview)}
+                            </div>
                           </div>
-                          <div className="text-sm font-medium">
-                            {formatDate(application.DateScreening)}
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {application.DateAccepted && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Offer
+                            </div>
+                            <div className="text-sm font-medium">
+                              {formatDate(application.DateAccepted)}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {application.DateInterview && (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Interview
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {application.DateRejected && (
+                          <div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              Rejected
+                            </div>
+                            <div className="text-sm font-medium">
+                              {formatDate(application.DateRejected)}
+                            </div>
                           </div>
-                          <div className="text-sm font-medium">
-                            {formatDate(application.DateInterview)}
-                          </div>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {application.DateAccepted && (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Offer
-                          </div>
-                          <div className="text-sm font-medium">
-                            {formatDate(application.DateAccepted)}
-                          </div>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {application.DateRejected && (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Rejected
-                          </div>
-                          <div className="text-sm font-medium">
-                            {formatDate(application.DateRejected)}
-                          </div>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {application.DateInterview && (
-                        <TooltipProvider>
-                          <Tooltip >
-                            <TooltipTrigger asChild>
-                              <div onClick={() => analyzeResume(application.ApplicationID)} className="cursor-pointer">
-                                <LightBulb />
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {application.DateInterview && (
+                          <TooltipProvider>
+                            <Tooltip >
+                              <TooltipTrigger asChild>
+                                <div onClick={(e) => {
+                                  e.stopPropagation();
+                                  analyzeResume(application.ApplicationID);
+                                }} className="cursor-pointer">
+                                  <LightBulb />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent className="bg-blue-dark text-white border-blue-dark">
+                                <p>Get insights on your application.</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                    {isExpanded && (
+                      <TableRow key={`${application.ApplicationID}-details`}>
+                        <TableCell colSpan={8} className="bg-gray-50 p-6">
+                          <div className="space-y-4">
+                            {application.Notes && (
+                              <div>
+                                <h4 className="font-semibold text-sm mb-2">Notes</h4>
+                                <p className="text-sm text-muted-foreground">{application.Notes}</p>
                               </div>
-                            </TooltipTrigger>
-                            <TooltipContent className="bg-blue-dark text-white border-blue-dark">
-                              <p>Get insights on your application.</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      )}
-                    </TableCell>
-                  </TableRow>
+                            )}
+                            <div className="flex gap-6">
+                              <div>
+                                <h4 className="font-semibold text-sm mb-2">Cover Letter</h4>
+                                <p className="text-sm">{application.DidCL ? "Submitted" : "Not submitted"}</p>
+                              </div>
+                              {application.JobURL && (
+                                <div>
+                                  <h4 className="font-semibold text-sm mb-2">Job Posting</h4>
+                                  <a
+                                    href={application.JobURL}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-blue-600 hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    View Job Posting →
+                                  </a>
+                                </div>
+                              )}
+                              {application.ResumeURL && (
+                                <div>
+                                  <h4 className="font-semibold text-sm mb-2">Resume</h4>
+                                  <button
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        const response = await fetch(`/api/s3?s3Url=${encodeURIComponent(application.ResumeURL)}`);
+                                        const data = await response.json();
+                                        if (data.success) {
+                                          const blob = await fetch(`data:${data.contentType};base64,${data.data}`).then(r => r.blob());
+                                          const url = URL.createObjectURL(blob);
+                                          window.open(url, '_blank');
+                                        }
+                                      } catch (error) {
+                                        console.error('Error opening resume:', error);
+                                      }
+                                    }}
+                                    className="text-sm text-blue-600 hover:underline"
+                                  >
+                                    View Resume →
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </TableBody>
