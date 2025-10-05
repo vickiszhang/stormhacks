@@ -401,7 +401,7 @@ export default function AnalyticsPage() {
                       <div className="text-2xl font-bold text-[#10559A]">
                         {withCoverLetter}
                       </div>
-                      <div className="text-xs text-gray-500">With CL</div>
+                      <div className="text-xs text-gray-500">With Cover Letter</div>
                     </div>
                   </div>
                   <div className="flex-1">
@@ -409,7 +409,7 @@ export default function AnalyticsPage() {
                       <div className="text-2xl font-bold text-gray-400">
                         {withoutCoverLetter}
                       </div>
-                      <div className="text-xs text-gray-500">Without CL</div>
+                      <div className="text-xs text-gray-500">Without Cover Letter</div>
                     </div>
                   </div>
                 </div>
@@ -429,7 +429,7 @@ export default function AnalyticsPage() {
                           {clScreeningRate}%
                         </div>
                         <div className="text-xs text-center text-gray-500 mt-1">
-                          With CL
+                          With Cover Letter
                         </div>
                       </div>
                       <div className="flex-1">
@@ -437,7 +437,7 @@ export default function AnalyticsPage() {
                           {noclScreeningRate}%
                         </div>
                         <div className="text-xs text-center text-gray-500 mt-1">
-                          Without CL
+                          Without Cover Letter
                         </div>
                       </div>
                     </div>
@@ -455,7 +455,7 @@ export default function AnalyticsPage() {
                           {clInterviewRate}%
                         </div>
                         <div className="text-xs text-center text-gray-500 mt-1">
-                          With CL
+                          With Cover Letter
                         </div>
                       </div>
                       <div className="flex-1">
@@ -463,7 +463,7 @@ export default function AnalyticsPage() {
                           {noclInterviewRate}%
                         </div>
                         <div className="text-xs text-center text-gray-500 mt-1">
-                          Without CL
+                          Without Cover Letter
                         </div>
                       </div>
                     </div>
@@ -479,7 +479,7 @@ export default function AnalyticsPage() {
                           {clOfferRate}%
                         </div>
                         <div className="text-xs text-center text-gray-500 mt-1">
-                          With CL
+                          With Cover Letter
                         </div>
                       </div>
                       <div className="flex-1">
@@ -487,7 +487,7 @@ export default function AnalyticsPage() {
                           {noclOfferRate}%
                         </div>
                         <div className="text-xs text-center text-gray-500 mt-1">
-                          Without CL
+                          Without Cover Letter
                         </div>
                       </div>
                     </div>
