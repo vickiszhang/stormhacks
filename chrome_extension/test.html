@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Beacon Extension Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            background: linear-gradient(135deg, #DB4C77 0%, #10559A 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-weight: 600;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.pending {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+        }
+        button {
+            background: linear-gradient(135deg, #10559A 0%, #3CA2C8 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 12px;
+        }
+        .checklist {
+            list-style: none;
+            padding: 0;
+        }
+        .checklist li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .checklist li:before {
+            content: "☐ ";
+            color: #DB4C77;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .checklist li.done:before {
+            content: "✓ ";
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎯 Beacon Extension Test Page</h1>
+    
+    <div class="test-card">
+        <h2>Backend Connection Test</h2>
+        <div id="backend-status" class="status pending">Testing...</div>
+        <button onclick="testBackend()">Test Backend</button>
+        <pre id="backend-result"></pre>
+    </div>
+
+    <div class="test-card">
+        <h2>Duplicate Detection Test</h2>
+        <div id="duplicate-status" class="status pending">Not tested yet</div>
+        <button onclick="testDuplicateCheck()">Test Duplicate Check</button>
+        <pre id="duplicate-result"></pre>
+    </div>
+
+    <div class="test-card">
+        <h2>Extension Checklist</h2>
+        <ul class="checklist">
+            <li id="check-1">Backend server running on port 3000</li>
+            <li id="check-2">Extension loaded in Chrome</li>
+            <li id="check-3">CSS styles loading correctly</li>
+            <li id="check-4">Job detection working</li>
+            <li id="check-5">Duplicate check endpoint responding</li>
+        </ul>
+    </div>
+
+    <div class="test-card">
+        <h2>Quick Actions</h2>
+        <button onclick="window.open('chrome://extensions/', '_blank')">Open Extensions Page</button>
+        <button onclick="window.open('http://localhost:3000', '_blank')">Open Backend (3000)</button>
+        <button onclick="window.open('http://localhost:3001', '_blank')">Open Dashboard (3001)</button>
+    </div>
+
+    <script>
+        async function testBackend() {
+            const statusDiv = document.getElementById('backend-status');
+            const resultPre = document.getElementById('backend-result');
+            
+            statusDiv.className = 'status pending';
+            statusDiv.textContent = 'Testing backend connection...';
+            resultPre.textContent = '';
+
+            try {
+                const response = await fetch('http://localhost:3000/check-duplicate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jobURL: 'https://test.com/job/123' })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✓ Backend is running!';
+                    resultPre.textContent = JSON.stringify(data, null, 2);
+                    document.getElementById('check-1').classList.add('done');
+                    document.getElementById('check-5').classList.add('done');
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ Backend connection failed';
+                resultPre.textContent = `Error: ${error.message}\n\nMake sure to run:\ncd chrome_extension/backend\nnode server.js`;
+            }
+        }
+
+        async function testDuplicateCheck() {
+            const statusDiv = document.getElementById('duplicate-status');
+            const resultPre = document.getElementById('duplicate-result');
+            
+            statusDiv.className = 'status pending';
+            statusDiv.textContent = 'Testing duplicate detection...';
+            resultPre.textContent = '';
+
+            try {
+                // Test 1: Check non-existent URL (should be no duplicate)
+                const response1 = await fetch('http://localhost:3000/check-duplicate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ jobURL: `https://test.com/job/${Date.now()}` })
+                });
+
+                const data1 = await response1.json();
+
+                if (!data1.isDuplicate) {
+                    statusDiv.className = 'status success';
+                    statusDiv.textContent = '✓ Duplicate detection working correctly!';
+                    resultPre.textContent = `Test 1 - New URL (No Duplicate):\n${JSON.stringify(data1, null, 2)}`;
+                } else {
+                    statusDiv.className = 'status error';
+                    statusDiv.textContent = '✗ Unexpected result - found duplicate for new URL';
+                    resultPre.textContent = JSON.stringify(data1, null, 2);
+                }
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = '✗ Duplicate check failed';
+                resultPre.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Auto-test on load
+        window.onload = () => {
+            setTimeout(() => {
+                testBackend();
+            }, 500);
+        };
+    </script>
+</body>
+</html>

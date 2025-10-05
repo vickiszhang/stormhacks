@@ -24,11 +24,13 @@ function isJobApplicationPage() {
   const title = document.title.toLowerCase();
   const bodyText = document.body.innerText.toLowerCase();
   
-  // Exclude search pages and listings
+  // Exclude search pages and listings (but be careful not to exclude actual job pages)
   const excludePatterns = [
-    /search/i, /results/i, /browse/i, /explore/i,
+    /\/jobs\/?$/i, // Just "/jobs" or "/jobs/" with nothing after (listings page)
+    /\/careers\/?$/i, // Just "/careers" or "/careers/" with nothing after
+    /\/search\?/i, // Search results with query params
+    /\/results\?/i, // Results with query params
     /google\.com/i, /bing\.com/i, /yahoo\.com/i,
-    /\/jobs$/i, // Just "/jobs" with nothing after
   ];
   
   // If URL matches exclusion patterns, it's not a job page
@@ -56,6 +58,8 @@ function isJobApplicationPage() {
     /\/jobdetail\//i, // Generic job detail pages
     /\/job-detail\//i, // Generic job detail pages with hyphen
     /requisition.*id/i, // Pages with requisition IDs
+    /ea\.com\/careers\/.*\/[0-9]+/i, // EA careers with numeric ID
+    /careers\.ea\.com\//i, // EA careers subdomain
   ];
   
   const hasJobUrl = jobUrlPatterns.some(pattern => pattern.test(url));
@@ -95,8 +99,11 @@ function isJobApplicationPage() {
     bodyText.includes('requisition') ||
     bodyText.includes('req id') ||
     bodyText.includes('job id') ||
+    bodyText.includes('role id') || // EA and others use "Role ID"
     document.querySelector('[class*="requisition"]') ||
-    document.querySelector('[id*="requisition"]')
+    document.querySelector('[id*="requisition"]') ||
+    document.querySelector('[class*="role-id"]') ||
+    document.querySelector('[id*="roleid"]')
   );
   
   // Must have at least job title + (company info OR apply button OR requisition ID)
@@ -151,6 +158,8 @@ function extractJobData() {
     // Special handling for common job sites
     if (hostname.includes('sap.com') || hostname.includes('jobs.sap')) {
       company = 'SAP';
+    } else if (hostname.includes('ea.com') || hostname.includes('electronicarts')) {
+      company = 'Electronic Arts';
     } else if (hostname.includes('greenhouse.io')) {
       // Extract company from greenhouse URL path
       const pathParts = location.pathname.split('/').filter(p => p);
@@ -200,24 +209,81 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
       sendResponse({ isJobPage: false, isBeacon: false, error: err?.message || String(err) });
     }
   }
+  
+  // New handler for AI verification - get page content
+  if (req?.type === "GET_PAGE_CONTENT") {
+    try {
+      sendResponse({
+        content: document.body.innerText,
+        title: document.title,
+        url: window.location.href
+      });
+    } catch (err) {
+      sendResponse({ error: err?.message || String(err) });
+    }
+  }
+  
   return true; // Required for async response
+});
+
+// Listen for storage changes to detect when popup opens/closes
+chrome.storage.onChanged.addListener((changes, namespace) => {
+  if (namespace === 'local' && changes.popupOpen) {
+    // If popup just opened, remove notification
+    if (changes.popupOpen.newValue === true) {
+      const notification = document.getElementById('job-tracker-notification');
+      if (notification) {
+        notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+        setTimeout(() => notification.remove(), 300);
+      }
+    }
+  }
 });
 
 // Auto-detect and show notification when page loads
 window.addEventListener('load', () => {
   // Wait a bit for the page to fully render
   setTimeout(() => {
-    if (isJobApplicationPage()) {
+    console.log('[Beacon] Page loaded, checking if job page...');
+    const isJob = isJobApplicationPage();
+    console.log('[Beacon] Is job page:', isJob);
+    
+    if (isJob) {
+      console.log('[Beacon] Job detected! Showing notification immediately...');
       showJobDetectedNotification();
     }
-  }, 1000);
+  }, 1500); // Increased to 1.5s for better page load detection
+});
+
+// Also try on DOMContentLoaded for faster detection
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    console.log('[Beacon] DOM loaded, checking if job page...');
+    const isJob = isJobApplicationPage();
+    console.log('[Beacon] Is job page:', isJob);
+    
+    if (isJob && !document.getElementById('job-tracker-notification')) {
+      console.log('[Beacon] Showing notification (DOM ready)...');
+      showJobDetectedNotification();
+    }
+  }, 2000);
 });
 
 function showJobDetectedNotification() {
+  console.log('[Beacon] showJobDetectedNotification called');
+  
   // Check if notification already exists
   if (document.getElementById('job-tracker-notification')) {
+    console.log('[Beacon] Notification already exists, skipping');
     return;
   }
+  
+  console.log('[Beacon] Creating notification element NOW...');
+  createNotificationElement();
+}
+
+function createNotificationElement() {
+  console.log('[Beacon] createNotificationElement called');
 
   const notification = document.createElement('div');
   notification.id = 'job-tracker-notification';
@@ -236,7 +302,6 @@ function showJobDetectedNotification() {
       min-width: 340px;
       max-width: 420px;
       animation: slideInRight 0.3s ease-out;
-      border: 3px solid #F9C6D7;
     ">
       <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
         <div style="display: flex; align-items: center; gap: 12px;">
@@ -315,6 +380,7 @@ function showJobDetectedNotification() {
   document.head.appendChild(style);
 
   document.body.appendChild(notification);
+  console.log('[Beacon] Notification added to DOM!');
 
   // Add event listeners
   document.getElementById('job-tracker-close').addEventListener('click', () => {
@@ -335,7 +401,7 @@ function showJobDetectedNotification() {
     setTimeout(() => notification.remove(), 300);
   });
 
-  // Auto-hide after 10 seconds
+    // Auto-hide after 10 seconds
   setTimeout(() => {
     if (document.getElementById('job-tracker-notification')) {
       notification.style.animation = 'slideInRight 0.3s ease-out reverse';
@@ -343,3 +409,13 @@ function showJobDetectedNotification() {
     }
   }, 10000);
 }
+
+// Expose test function globally for debugging
+window.beaconTestNotification = function() {
+  console.log('[Beacon] Manual test notification triggered');
+  createNotificationElement();
+};
+
+// Log when script loads
+console.log('[Beacon] Content script loaded and ready!');
+console.log('[Beacon] To test notification manually, run: beaconTestNotification()');
