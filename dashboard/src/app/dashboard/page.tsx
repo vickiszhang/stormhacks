@@ -1,13 +1,23 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { sampleApplicationData, ApplicationData } from "@/data/sample-applications-data";
+import { ApplicationData } from "@/data/sample-applications-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { LightBulb } from "@/components/lightbulb";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
 export default function Dashboard() {
@@ -15,9 +25,40 @@ export default function Dashboard() {
   const [geminiResponse, setGeminiResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFollowUpDialogOpen, setIsFollowUpDialogOpen] = useState(false);
-  const [pendingInterviews, setPendingInterviews] = useState<Array<{index: number, role: string, company: string, interviewDate: string}>>([]);
+  const [pendingInterviews, setPendingInterviews] = useState<
+    Array<{
+      index: number;
+      role: string;
+      company: string;
+      interviewDate: string;
+    }>
+  >([]);
   const [currentFollowUpIndex, setCurrentFollowUpIndex] = useState(0);
-  const [applications, setApplications] = useState(sampleApplicationData);
+  // const [applications, setApplications] = useState(sampleApplicationData);
+  const [applications, setApplications] = useState<ApplicationData[]>([]);
+
+  const [isLoadingApplications, setIsLoadingApplications] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoadingApplications(true);
+        const response = await fetch("/api/aws", {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const data = await response.json();
+        setApplications(data.data);
+      } catch (error) {
+        console.error("Error loading applications:", error);
+      } finally {
+        setIsLoadingApplications(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "";
@@ -31,34 +72,52 @@ export default function Dashboard() {
 
   useEffect(() => {
     // Find applications with past interview dates that haven't been updated to offer/rejected
+    if (applications.length === 0) return;
+
     const today = new Date();
     const pastInterviews = applications
       .map((app, index) => {
         if (app.DateInterview && !app.DateAccepted && !app.DateRejected) {
           const interviewDate = new Date(app.DateInterview);
           if (interviewDate < today) {
-            return { index, role: app.Role, company: app.Company, interviewDate: app.DateInterview };
+            return {
+              index,
+              role: app.Role,
+              company: app.Company,
+              interviewDate: app.DateInterview,
+            };
           }
         }
         return null;
       })
-      .filter((item): item is {index: number, role: string, company: string, interviewDate: string} => item !== null);
+      .filter(
+        (
+          item
+        ): item is {
+          index: number;
+          role: string;
+          company: string;
+          interviewDate: string;
+        } => item !== null
+      );
 
     if (pastInterviews.length > 0) {
       setPendingInterviews(pastInterviews);
       setIsFollowUpDialogOpen(true);
     }
-  }, []);
+  }, [applications]);
 
-  const handleFollowUpResponse = (response: 'no_update' | 'offered' | 'rejected') => {
+  const handleFollowUpResponse = (
+    response: "no_update" | "offered" | "rejected"
+  ) => {
     const currentInterview = pendingInterviews[currentFollowUpIndex];
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split("T")[0];
 
-    if (response === 'offered') {
+    if (response === "offered") {
       const updatedApps = [...applications];
       updatedApps[currentInterview.index].DateAccepted = today;
       setApplications(updatedApps);
-    } else if (response === 'rejected') {
+    } else if (response === "rejected") {
       const updatedApps = [...applications];
       updatedApps[currentInterview.index].DateRejected = today;
       setApplications(updatedApps);
@@ -79,17 +138,17 @@ export default function Dashboard() {
       setIsLoading(true);
       setGeminiResponse("");
 
-      const response = await fetch('/api/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: 'Say hello' })
+      const response = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "Say hello" }),
       });
       const data = await response.json();
       setGeminiResponse(data.response);
       setIsLoading(false);
     } catch (error) {
-      console.error('Error calling Gemini:', error);
-      setGeminiResponse('Error: Failed to get response from Gemini');
+      console.error("Error calling Gemini:", error);
+      setGeminiResponse("Error: Failed to get response from Gemini");
       setIsLoading(false);
     }
   };
@@ -101,14 +160,21 @@ export default function Dashboard() {
           <CardTitle>Application Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableBody>
-              {applications.map((application) => {
+          {isLoadingApplications ? (
+            <div className="flex justify-center items-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500"></div>
+            </div>
+          ) : (
+            <Table>
+              <TableBody>
+                {applications.map((application) => {
                 return (
                   <TableRow
                     key={application.ApplicationID}
                     className={`${
-                      application.DateRejected ? "bg-gray-100 text-muted-foreground" : ""
+                      application.DateRejected
+                        ? "bg-gray-100 text-muted-foreground"
+                        : ""
                     } h-16`}
                   >
                     <TableCell>
@@ -196,6 +262,7 @@ export default function Dashboard() {
               })}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -220,30 +287,54 @@ export default function Dashboard() {
             <SheetTitle>Application Updates</SheetTitle>
           </SheetHeader>
           <div className="p-6 ">
-            {pendingInterviews.length > 0 && currentFollowUpIndex < pendingInterviews.length && (
-              <>
-                <p className="text-sm text-muted-foreground mb-2">
-                  {currentFollowUpIndex + 1} of {pendingInterviews.length}
-                </p>
-                <p className="mb-4 text-lg">
-                  Have there been any updates on your <strong>{pendingInterviews[currentFollowUpIndex].role}</strong> application at <strong>{pendingInterviews[currentFollowUpIndex].company}</strong>?
-                </p>
-                <p className="text-sm text-muted-foreground mb-6">
-                  Interview Date: {formatDate(pendingInterviews[currentFollowUpIndex].interviewDate)}
-                </p>
-                <div className="flex flex-col gap-3">
-                  <Button variant="outline" onClick={() => handleFollowUpResponse('no_update')} className="w-full">
-                    No Update
-                  </Button>
-                  <Button variant="default" onClick={() => handleFollowUpResponse('offered')} className="w-full">
-                    Offered
-                  </Button>
-                  <Button variant="destructive" onClick={() => handleFollowUpResponse('rejected')} className="w-full">
-                    Rejected
-                  </Button>
-                </div>
-              </>
-            )}
+            {pendingInterviews.length > 0 &&
+              currentFollowUpIndex < pendingInterviews.length && (
+                <>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {currentFollowUpIndex + 1} of {pendingInterviews.length}
+                  </p>
+                  <p className="mb-4 text-lg">
+                    Have there been any updates on your{" "}
+                    <strong>
+                      {pendingInterviews[currentFollowUpIndex].role}
+                    </strong>{" "}
+                    application at{" "}
+                    <strong>
+                      {pendingInterviews[currentFollowUpIndex].company}
+                    </strong>
+                    ?
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    Interview Date:{" "}
+                    {formatDate(
+                      pendingInterviews[currentFollowUpIndex].interviewDate
+                    )}
+                  </p>
+                  <div className="flex flex-col gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => handleFollowUpResponse("no_update")}
+                      className="w-full"
+                    >
+                      No Update
+                    </Button>
+                    <Button
+                      variant="default"
+                      onClick={() => handleFollowUpResponse("offered")}
+                      className="w-full"
+                    >
+                      Offered
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleFollowUpResponse("rejected")}
+                      className="w-full"
+                    >
+                      Rejected
+                    </Button>
+                  </div>
+                </>
+              )}
           </div>
         </SheetContent>
       </Sheet>

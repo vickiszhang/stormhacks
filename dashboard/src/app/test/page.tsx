@@ -9,7 +9,7 @@ export default function Test() {
   const [apiResponse, setApiResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const testDynamoDB = async () => {
+  const getApplications = async () => {
     try {
       setIsDialogOpen(true);
       setIsLoading(true);
@@ -31,7 +31,7 @@ export default function Test() {
 
   return (
     <div className="p-8">
-      <Button onClick={testDynamoDB}>Test DynamoDB GET</Button>
+      <Button onClick={getApplications}>Test DynamoDB GET</Button>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-2xl">
