@@ -15,7 +15,7 @@ export default function Test() {
       setIsLoading(true);
       setApiResponse("");
 
-      const response = await fetch('/api/aws', {
+      const response = await fetch('/api/dynamodb', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
