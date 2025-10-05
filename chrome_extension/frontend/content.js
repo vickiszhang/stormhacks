@@ -11,31 +11,63 @@ function isJobApplicationPage() {
   const title = document.title.toLowerCase();
   const bodyText = document.body.innerText.toLowerCase();
   
-  // Check URL patterns
+  // Exclude search pages and listings
+  const excludePatterns = [
+    /search/i, /results/i, /browse/i, /explore/i,
+    /google\.com/i, /bing\.com/i, /yahoo\.com/i,
+    /\/jobs$/i, // Just "/jobs" with nothing after
+  ];
+  
+  // If URL matches exclusion patterns, it's not a job page
+  if (excludePatterns.some(pattern => pattern.test(url))) {
+    return false;
+  }
+  
+  // Must have specific job URL patterns (more strict)
   const jobUrlPatterns = [
-    /jobs?/i, /careers?/i, /apply/i, /positions?/i, /opportunities/i,
-    /greenhouse\.io/i, /lever\.co/i, /workday/i, /myworkdayjobs/i,
-    /linkedin\.com\/jobs/i, /indeed\.com/i, /glassdoor/i, /monster\.com/i
+    /\/jobs?\/[a-zA-Z0-9]/i, // /jobs/ or /job/ followed by ID or slug
+    /\/careers?\/[a-zA-Z0-9]/i, // /careers/ or /career/ followed by content
+    /\/apply\//i, // /apply/ in URL
+    /\/positions?\/[a-zA-Z0-9]/i, // /positions/ or /position/ with ID
+    /\/opportunities\/[a-zA-Z0-9]/i, // /opportunities/ with ID
+    /greenhouse\.io\/.*\/jobs\//i, // Greenhouse with job ID
+    /lever\.co\/.*\/[a-f0-9-]{36}/i, // Lever with UUID
+    /workday.*\/job\//i, // Workday job pages
+    /myworkdayjobs\.com\/.*\/job\//i, // Workday job pages
+    /linkedin\.com\/jobs\/view\//i, // LinkedIn specific job view
+    /indeed\.com\/viewjob/i, // Indeed job view
+    /glassdoor\.com\/job-listing/i, // Glassdoor job listing
   ];
   
   const hasJobUrl = jobUrlPatterns.some(pattern => pattern.test(url));
   
-  // Check for job-related keywords in title and content
-  const jobKeywords = ['apply', 'application', 'job', 'career', 'position', 'opening', 'hiring', 'employment'];
-  const hasJobKeywords = jobKeywords.some(keyword => 
-    title.includes(keyword) || bodyText.substring(0, 1000).includes(keyword)
+  // Only proceed if URL looks like a specific job page
+  if (!hasJobUrl) {
+    return false;
+  }
+  
+  // Additional confirmation: check for job-specific content
+  const hasJobTitle = !!(
+    document.querySelector('h1') ||
+    document.querySelector('[class*="job-title"]') ||
+    document.querySelector('[class*="position-title"]')
   );
   
-  // Check for common job application form elements
-  const hasJobFormElements = !!(
-    document.querySelector('input[type="file"]') || // Resume upload
-    document.querySelector('textarea[placeholder*="experience"]') ||
-    document.querySelector('input[placeholder*="resume"]') ||
-    document.querySelector('[class*="job-apply"]') ||
-    document.querySelector('[id*="job-application"]')
+  const hasCompanyInfo = !!(
+    document.querySelector('[class*="company"]') ||
+    document.querySelector('[itemprop="hiringOrganization"]') ||
+    document.querySelector('meta[property="og:site_name"]')
   );
   
-  return hasJobUrl || (hasJobKeywords && hasJobFormElements);
+  const hasApplyButton = !!(
+    document.querySelector('button[class*="apply"]') ||
+    document.querySelector('a[class*="apply"]') ||
+    document.querySelector('[id*="apply"]') ||
+    document.querySelector('input[type="submit"][value*="apply" i]')
+  );
+  
+  // Must have at least job title + (company info OR apply button)
+  return hasJobTitle && (hasCompanyInfo || hasApplyButton);
 }
 
 function extractJobData() {
@@ -108,3 +140,127 @@ chrome.runtime.onMessage.addListener((req, sender, sendResponse) => {
   }
   return true; // Required for async response
 });
+
+// Auto-detect and show notification when page loads
+window.addEventListener('load', () => {
+  // Wait a bit for the page to fully render
+  setTimeout(() => {
+    if (isJobApplicationPage()) {
+      showJobDetectedNotification();
+    }
+  }, 1000);
+});
+
+function showJobDetectedNotification() {
+  // Check if notification already exists
+  if (document.getElementById('job-tracker-notification')) {
+    return;
+  }
+
+  const notification = document.createElement('div');
+  notification.id = 'job-tracker-notification';
+  notification.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(135deg, #10559A 0%, #0d4680 100%);
+      color: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      min-width: 300px;
+      max-width: 400px;
+      animation: slideInRight 0.3s ease-out;
+    ">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 24px;">📋</span>
+          <span style="font-weight: 600; font-size: 16px;">Job Application Detected!</span>
+        </div>
+        <button id="job-tracker-close" style="
+          background: rgba(255, 255, 255, 0.2);
+          border: none;
+          color: white;
+          cursor: pointer;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 18px;
+          line-height: 1;
+          transition: background 0.2s;
+        ">×</button>
+      </div>
+      <p style="margin: 0 0 12px 0; font-size: 13px; opacity: 0.95; line-height: 1.4;">
+        Click the extension icon to track this application
+      </p>
+      <button id="job-tracker-action" style="
+        background: #F9C6D7;
+        color: #c2185b;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        font-size: 14px;
+        transition: all 0.2s;
+      ">
+        📌 Track This Application
+      </button>
+    </div>
+  `;
+
+  // Add animation keyframes
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes slideInRight {
+      from {
+        transform: translateX(400px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+    #job-tracker-action:hover {
+      background: #f7b3cc !important;
+      transform: translateY(-2px);
+    }
+    #job-tracker-close:hover {
+      background: rgba(255, 255, 255, 0.3) !important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  document.body.appendChild(notification);
+
+  // Add event listeners
+  document.getElementById('job-tracker-close').addEventListener('click', () => {
+    notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+    setTimeout(() => notification.remove(), 300);
+  });
+
+  document.getElementById('job-tracker-action').addEventListener('click', () => {
+    // Send message to background to open popup by simulating icon click
+    chrome.runtime.sendMessage({ type: 'OPEN_POPUP' }, (response) => {
+      // Fallback: show message if popup can't be opened programmatically
+      if (chrome.runtime.lastError) {
+        alert('Please click the extension icon in your toolbar to track this application.');
+      }
+    });
+    // Hide notification
+    notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+    setTimeout(() => notification.remove(), 300);
+  });
+
+  // Auto-hide after 10 seconds
+  setTimeout(() => {
+    if (document.getElementById('job-tracker-notification')) {
+      notification.style.animation = 'slideInRight 0.3s ease-out reverse';
+      setTimeout(() => notification.remove(), 300);
+    }
+  }, 10000);
+}

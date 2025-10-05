@@ -125,15 +125,16 @@
       }
 
       .icon {
-        font-size: 48px;
-        text-align: center;
-        margin-bottom: 20px;
+        width: 64px;
+        height: 64px;
+        display: block;
+        margin: 0 auto 20px;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <div class="icon">📋</div>
+      <img src="icon.png" alt="Job Tracker Icon" class="icon">
       <h1>Job Application Tracker</h1>
       <p class="subtitle">Configure your AI-powered job tracking assistant</p>
 
@@ -147,7 +148,7 @@
         </div>
       </div>
 
-      <button id="save-button">💾 Save Settings</button>
+      <button id="save-button">Save Settings</button>
       
       <p id="success-message" class="success-message">
         ✓ Settings saved successfully!
