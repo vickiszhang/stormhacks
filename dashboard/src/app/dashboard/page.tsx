@@ -30,6 +30,8 @@ export default function Dashboard() {
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
   const [usingSampleData, setUsingSampleData] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
+  const [editingCell, setEditingCell] = useState<{ id: string; field: string } | null>(null);
+  const [editValue, setEditValue] = useState<string>("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -66,6 +68,14 @@ export default function Dashboard() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return "";
+    // Parse the date as UTC to avoid timezone shifts
+    const [year, month, day] = dateString.split('-');
+    if (year && month && day) {
+      // Format as MM/DD/YY
+      const shortYear = year.slice(-2);
+      return `${month}/${day}/${shortYear}`;
+    }
+    // Fallback for other formats
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
       month: "2-digit",
@@ -220,6 +230,121 @@ export default function Dashboard() {
     }
   };
 
+  const handleEditStart = (applicationId: string, field: string, currentValue: string) => {
+    setEditingCell({ id: applicationId, field });
+    // Convert the date to YYYY-MM-DD format for the date input
+    if (currentValue) {
+      const date = new Date(currentValue);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      setEditValue(`${year}-${month}-${day}`);
+    } else {
+      setEditValue("");
+    }
+  };
+
+  const handleEditCancel = () => {
+    setEditingCell(null);
+    setEditValue("");
+  };
+
+  const handleEditSave = async (applicationId: string, field: string) => {
+    try {
+      const app = applications.find(a => a.ApplicationID === applicationId);
+      if (!app) return;
+
+      // Ensure the date is stored in ISO format (YYYY-MM-DD)
+      const dateToSave = editValue || "";
+
+      // Update in database
+      await fetch("/api/dynamodb", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ApplicationID: applicationId,
+          updates: {
+            [field]: dateToSave,
+          },
+        }),
+      });
+
+      // Update local state
+      const updatedApps = applications.map(a =>
+        a.ApplicationID === applicationId
+          ? { ...a, [field]: dateToSave }
+          : a
+      );
+      setApplications(updatedApps);
+
+      toast.success("Date updated successfully");
+      setEditingCell(null);
+      setEditValue("");
+    } catch (error) {
+      console.error("Error updating date:", error);
+      toast.error("Failed to update date");
+    }
+  };
+
+  const renderEditableDate = (application: ApplicationData, field: string, label: string) => {
+    const isEditing = editingCell?.id === application.ApplicationID && editingCell?.field === field;
+    const dateValue = (application as any)[field];
+
+    if (isEditing) {
+      return (
+        <div className="flex flex-col gap-1">
+          <div className="text-xs text-muted-foreground mb-1">{label}</div>
+          <input
+            type="date"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="text-sm border border-blue-500 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            autoFocus
+          />
+          <div className="flex gap-1 mt-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditSave(application.ApplicationID, field);
+              }}
+              className="text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600"
+            >
+              Save
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditCancel();
+              }}
+              className="text-xs bg-gray-500 text-white px-2 py-1 rounded hover:bg-gray-600"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          handleEditStart(application.ApplicationID, field, dateValue || "");
+        }}
+        className="cursor-pointer hover:bg-blue-50 rounded p-1 transition-colors"
+      >
+        <div className="text-xs text-muted-foreground mb-1">{label}</div>
+        <div className="text-sm font-medium flex items-center justify-center gap-1">
+          {dateValue ? formatDate(dateValue) : "-"}
+          <svg className="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       {/* Sample Data Banner */}
@@ -300,91 +425,19 @@ export default function Dashboard() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      {application.DateApplied && (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Applied
-                          </div>
-                          <div className="text-sm font-medium">
-                            {formatDate(application.DateApplied)}
-                          </div>
-                        </div>
-                      )}
+                      {renderEditableDate(application, "DateApplied", "Applied")}
                     </TableCell>
                     <TableCell className="text-center">
-                      {application.DateScreening ? (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Screen
-                          </div>
-                          <div className="text-sm font-medium">
-                            {formatDate(application.DateScreening)}
-                          </div>
-                        </div>
-                      ) : application.DateInterview || application.DateRejected ? (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Screen
-                          </div>
-                          <div className="text-sm font-medium">
-                            -
-                          </div>
-                        </div>
-                      ) : null}
+                      {renderEditableDate(application, "DateScreening", "Screen")}
                     </TableCell>
                     <TableCell className="text-center">
-                      {application.DateInterview ? (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Interview
-                          </div>
-                          <div className="text-sm font-medium">
-                            {formatDate(application.DateInterview)}
-                          </div>
-                        </div>
-                      ) : application.DateRejected ? (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Interview
-                          </div>
-                          <div className="text-sm font-medium">
-                            -
-                          </div>
-                        </div>
-                      ) : null}
+                      {renderEditableDate(application, "DateInterview", "Interview")}
                     </TableCell>
                     <TableCell className="text-center">
-                      {application.DateAccepted ? (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Offer
-                          </div>
-                          <div className="text-sm font-medium">
-                            {formatDate(application.DateAccepted)}
-                          </div>
-                        </div>
-                      ) : application.DateRejected ? (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Offer
-                          </div>
-                          <div className="text-sm font-medium">
-                            -
-                          </div>
-                        </div>
-                      ) : null}
+                      {renderEditableDate(application, "DateAccepted", "Offer")}
                     </TableCell>
                     <TableCell className="text-center">
-                      {application.DateRejected && (
-                        <div>
-                          <div className="text-xs text-muted-foreground mb-1">
-                            Rejected
-                          </div>
-                          <div className="text-sm font-medium">
-                            {formatDate(application.DateRejected)}
-                          </div>
-                        </div>
-                      )}
+                      {renderEditableDate(application, "DateRejected", "Rejected")}
                     </TableCell>
                   </TableRow>
                   {isExpanded && (
