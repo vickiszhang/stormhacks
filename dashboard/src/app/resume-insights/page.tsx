@@ -1,5 +1,5 @@
 "use client";
-
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -531,19 +531,15 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
             ) : (
               <Card className="border-0 shadow-lg">
                 <CardContent className="py-12 text-center">
-                  <svg
-                    className="mx-auto h-16 w-16 text-gray-400 mb-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
-                    />
-                  </svg>
+          <div className="flex justify-center items-center pb-8">
+            <Image
+              src="/logo_website.png"
+              alt="Beacon Logo"
+              width={120}
+              height={120}
+              className="object-contain opacity-60"
+            />
+          </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     Select resumes to compare
                   </h3>

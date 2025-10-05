@@ -44,6 +44,7 @@ export default function AnalyticsPage() {
 
   // Status breakdown
   const screening = applications.filter((app) => app.DateScreening).length;
+
   const interviews = applications.filter((app) => app.DateInterview).length;
   const offers = applications.filter((app) => app.DateAccepted).length;
   const rejections = applications.filter((app) => app.DateRejected).length;
@@ -454,20 +455,23 @@ export default function AnalyticsPage() {
                 </div>
               </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium">Screening → Interview</span>
-                  <span className="text-2xl font-bold text-[#10559A]">
-                    {screening > 0 ? ((interviews / screening) * 100).toFixed(0) : 0}%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-[#10559A] h-2 rounded-full"
-                    style={{ width: `${screening > 0 ? (interviews / screening) * 100 : 0}%` }}
-                  ></div>
-                </div>
-              </div>
+<div>
+  <div className="flex justify-between items-center mb-2">
+    <span className="text-sm font-medium">Screening → Interview</span>
+    <span className="text-2xl font-bold text-[#10559A]">
+      {screening > 0 ? ((Math.min(interviews, screening) / screening) * 100).toFixed(0) : 0}%
+    </span>
+  </div>
+  <div className="w-full bg-gray-200 rounded-full h-2">
+    <div
+      className="bg-[#10559A] h-2 rounded-full"
+      style={{
+        width: `${screening > 0 ? (Math.min(interviews, screening) / screening) * 100 : 0}%`,
+      }}
+    ></div>
+  </div>
+</div>
+
 
               <div>
                 <div className="flex justify-between items-center mb-2">

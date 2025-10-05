@@ -734,7 +734,17 @@ export default function Dashboard() {
           </Table>
           )}
         </CardContent>
+                  <div className="flex justify-center items-center pb-8">
+            <Image
+              src="/logo_website.png"
+              alt="Beacon Logo"
+              width={120}
+              height={120}
+              className="object-contain opacity-60"
+            />
+          </div>
       </Card>
+      
 
       <Sheet open={isFollowUpDialogOpen} onOpenChange={setIsFollowUpDialogOpen}>
         <SheetContent side="right" className="flex flex-col">
