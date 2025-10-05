@@ -13,6 +13,10 @@ interface ResumeVersion {
   resumeUrl: string;
   extractedText?: string;
   analysisGenerated?: boolean;
+  dateAccepted?: string;
+  dateRejected?: string;
+  dateScreening?: string;
+  dateInterview?: string;
 }
 
 interface ResumeDiff {
@@ -53,6 +57,10 @@ export default function ResumeInsightsPage() {
           role: app.Role,
           dateApplied: app.DateApplied,
           resumeUrl: app.ResumeURL,
+          dateAccepted: app.DateAccepted,
+          dateRejected: app.DateRejected,
+          dateScreening: app.DateScreening,
+          dateInterview: app.DateInterview,
         }));
 
       setResumes(resumeData);
@@ -129,7 +137,7 @@ Please provide insights on:
 
 The response should be personal and directed towards the candidate, e.g. "you can improve ..." rather than "the candidate can improve"
 
-Keep the response well-structured, concise, and actionable. Do not include any asterisks * characters in the response.`,
+Keep the response well-structured, concise to about 200-250 words, and actionable. Keep the response including tailored insights on the specific resumes that we are comparing, and company, and job function. Do not include any asterisks * characters in the response.`,
           files: [
             {
               fileData: s3Data1.data,
@@ -168,6 +176,19 @@ Keep the response well-structured, concise, and actionable. Do not include any a
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+
+  const getApplicationStatus = (resume: ResumeVersion) => {
+    if (resume.dateAccepted) {
+      return { color: "bg-green-500", label: "Offer", textColor: "text-green-700" };
+    }
+    if (resume.dateRejected) {
+      return { color: "bg-red-500", label: "Rejected", textColor: "text-red-700" };
+    }
+    if (resume.dateInterview || resume.dateScreening) {
+      return { color: "bg-yellow-500", label: resume.dateInterview ? "Interview" : "Screening", textColor: "text-yellow-700" };
+    }
+    return { color: "bg-blue-500", label: "Applied", textColor: "text-blue-700" };
   };
 
   // Find the previous resume with a different URL
@@ -242,6 +263,7 @@ Keep the response well-structured, concise, and actionable. Do not include any a
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {resumes.map((resume, index) => {
                     const previousDifferentResume = findPreviousDifferentResume(index);
+                    const status = getApplicationStatus(resume);
 
                     return (
                       <div
@@ -250,7 +272,15 @@ Keep the response well-structured, concise, and actionable. Do not include any a
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900">{resume.role}</h4>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-semibold text-gray-900">{resume.role}</h4>
+                              <div className="flex items-center gap-1">
+                                <div className={`w-2 h-2 rounded-full ${status.color}`}></div>
+                                <span className={`text-xs font-medium ${status.textColor}`}>
+                                  {status.label}
+                                </span>
+                              </div>
+                            </div>
                             <p className="text-sm text-gray-600">{resume.company}</p>
                             <p className="text-xs text-gray-500 mt-1">
                               Applied: {formatDate(resume.dateApplied)}
