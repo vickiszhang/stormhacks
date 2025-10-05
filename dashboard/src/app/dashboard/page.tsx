@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { sampleApplicationData, status } from "@/data/sample-applications-data";
+import { sampleApplicationData, ApplicationData } from "@/data/sample-applications-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -15,11 +15,13 @@ export default function Dashboard() {
   const [geminiResponse, setGeminiResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isFollowUpDialogOpen, setIsFollowUpDialogOpen] = useState(false);
-  const [pendingInterviews, setPendingInterviews] = useState<Array<{index: number, title: string, company: string, interviewDate: Date}>>([]);
+  const [pendingInterviews, setPendingInterviews] = useState<Array<{index: number, role: string, company: string, interviewDate: string}>>([]);
   const [currentFollowUpIndex, setCurrentFollowUpIndex] = useState(0);
   const [applications, setApplications] = useState(sampleApplicationData);
 
-  const formatDate = (date: Date) => {
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
       month: "2-digit",
       day: "2-digit",
@@ -27,28 +29,20 @@ export default function Dashboard() {
     });
   };
 
-  const getStatusDate = (
-    statusHistory: { status: status; date: Date }[],
-    targetStatus: status
-  ) => {
-    return statusHistory.find((s) => s.status === targetStatus)?.date;
-  };
-
   useEffect(() => {
     // Find applications with past interview dates that haven't been updated to offer/rejected
     const today = new Date();
     const pastInterviews = applications
       .map((app, index) => {
-        const interviewDate = getStatusDate(app.statusHistory, status.INTERVIEW);
-        const hasOffer = getStatusDate(app.statusHistory, status.OFFER);
-        const hasRejection = getStatusDate(app.statusHistory, status.REJECTED);
-
-        if (interviewDate && !hasOffer && !hasRejection && interviewDate < today) {
-          return { index, title: app.title, company: app.company, interviewDate };
+        if (app.DateInterview && !app.DateAccepted && !app.DateRejected) {
+          const interviewDate = new Date(app.DateInterview);
+          if (interviewDate < today) {
+            return { index, role: app.Role, company: app.Company, interviewDate: app.DateInterview };
+          }
         }
         return null;
       })
-      .filter((item): item is {index: number, title: string, company: string, interviewDate: Date} => item !== null);
+      .filter((item): item is {index: number, role: string, company: string, interviewDate: string} => item !== null);
 
     if (pastInterviews.length > 0) {
       setPendingInterviews(pastInterviews);
@@ -58,22 +52,15 @@ export default function Dashboard() {
 
   const handleFollowUpResponse = (response: 'no_update' | 'offered' | 'rejected') => {
     const currentInterview = pendingInterviews[currentFollowUpIndex];
+    const today = new Date().toISOString().split('T')[0];
 
     if (response === 'offered') {
       const updatedApps = [...applications];
-      updatedApps[currentInterview.index].statusHistory.push({
-        status: status.OFFER,
-        date: new Date()
-      });
-      updatedApps[currentInterview.index].currentStatus = status.OFFER;
+      updatedApps[currentInterview.index].DateAccepted = today;
       setApplications(updatedApps);
     } else if (response === 'rejected') {
       const updatedApps = [...applications];
-      updatedApps[currentInterview.index].statusHistory.push({
-        status: status.REJECTED,
-        date: new Date()
-      });
-      updatedApps[currentInterview.index].currentStatus = status.REJECTED;
+      updatedApps[currentInterview.index].DateRejected = today;
       setApplications(updatedApps);
     }
 
@@ -116,106 +103,85 @@ export default function Dashboard() {
         <CardContent>
           <Table>
             <TableBody>
-              {applications.map((application, index) => {
-                const appliedDate = getStatusDate(
-                  application.statusHistory,
-                  status.APPLIED
-                );
-                const screenDate = getStatusDate(
-                  application.statusHistory,
-                  status.ONLINE_ASSESSMENT
-                );
-                const interviewDate = getStatusDate(
-                  application.statusHistory,
-                  status.INTERVIEW
-                );
-                const offerDate = getStatusDate(
-                  application.statusHistory,
-                  status.OFFER
-                );
-                const rejectedDate = getStatusDate(
-                  application.statusHistory,
-                  status.REJECTED
-                );
-
+              {applications.map((application) => {
                 return (
                   <TableRow
-                    key={index}
+                    key={application.ApplicationID}
                     className={`${
-                      rejectedDate ? "bg-gray-100 text-muted-foreground" : ""
+                      application.DateRejected ? "bg-gray-100 text-muted-foreground" : ""
                     } h-16`}
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar>
                           <AvatarFallback className="bg-pink-500 text-white">
-                            {application.title.charAt(0)}
+                            {application.Role.charAt(0)}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium">{application.title}</div>
+                          <div className="font-medium">{application.Role}</div>
                           <div className="text-sm text-muted-foreground">
-                            {application.company}
+                            {application.Company}
                           </div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      {appliedDate && (
+                      {application.DateApplied && (
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">
                             Applied
                           </div>
                           <div className="text-sm font-medium">
-                            {formatDate(appliedDate)}
+                            {formatDate(application.DateApplied)}
                           </div>
                         </div>
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      {screenDate && (
+                      {application.DateScreening && (
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">
                             Screen
                           </div>
                           <div className="text-sm font-medium">
-                            {formatDate(screenDate)}
+                            {formatDate(application.DateScreening)}
                           </div>
                         </div>
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      {interviewDate && (
+                      {application.DateInterview && (
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">
                             Interview
                           </div>
                           <div className="text-sm font-medium">
-                            {formatDate(interviewDate)}
+                            {formatDate(application.DateInterview)}
                           </div>
                         </div>
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      {offerDate && (
+                      {application.DateAccepted && (
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">
                             Offer
                           </div>
                           <div className="text-sm font-medium">
-                            {formatDate(offerDate)}
+                            {formatDate(application.DateAccepted)}
                           </div>
                         </div>
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      {rejectedDate && (
+                      {application.DateRejected && (
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">
                             Rejected
                           </div>
                           <div className="text-sm font-medium">
-                            {formatDate(rejectedDate)}
+                            {formatDate(application.DateRejected)}
                           </div>
                         </div>
                       )}
@@ -260,7 +226,7 @@ export default function Dashboard() {
                   {currentFollowUpIndex + 1} of {pendingInterviews.length}
                 </p>
                 <p className="mb-4 text-lg">
-                  Have there been any updates on your <strong>{pendingInterviews[currentFollowUpIndex].title}</strong> application at <strong>{pendingInterviews[currentFollowUpIndex].company}</strong>?
+                  Have there been any updates on your <strong>{pendingInterviews[currentFollowUpIndex].role}</strong> application at <strong>{pendingInterviews[currentFollowUpIndex].company}</strong>?
                 </p>
                 <p className="text-sm text-muted-foreground mb-6">
                   Interview Date: {formatDate(pendingInterviews[currentFollowUpIndex].interviewDate)}

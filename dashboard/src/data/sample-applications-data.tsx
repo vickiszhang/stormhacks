@@ -1,169 +1,227 @@
-
-export enum status {
-    APPLIED,
-    ONLINE_ASSESSMENT,
-    INTERVIEW,
-    OFFER,
-    REJECTED
+export interface ApplicationData {
+    ApplicationID: string;
+    Company: string;
+    DateAccepted: string;
+    DateApplied: string;
+    DateInterview: string;
+    DateRejected: string;
+    DateScreening: string;
+    DidCL: boolean;
+    JobURL: string;
+    Notes: string;
+    ResumeURL: string;
+    Role: string;
 }
 
-export const sampleApplicationData = [
+export const sampleApplicationData: ApplicationData[] = [
     {
-        id: 1,
-        title: "Software Developer",
-        company: "Google",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-15") }
-        ],
-        currentStatus: status.APPLIED
+        ApplicationID: "1",
+        Company: "Google",
+        DateAccepted: "",
+        DateApplied: "2025-09-15",
+        DateInterview: "",
+        DateRejected: "",
+        DateScreening: "",
+        DidCL: true,
+        JobURL: "https://careers.google.com/jobs/1",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Software Developer"
     },
     {
-        id: 2,
-        title: "Frontend Engineer",
-        company: "Meta",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-18") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-22") }
-        ],
-        currentStatus: status.ONLINE_ASSESSMENT
+        ApplicationID: "2",
+        Company: "Meta",
+        DateAccepted: "",
+        DateApplied: "2025-09-18",
+        DateInterview: "",
+        DateRejected: "",
+        DateScreening: "2025-09-22",
+        DidCL: true,
+        JobURL: "https://careers.meta.com/jobs/2",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Frontend Engineer"
     },
     {
-        id: 3,
-        title: "Backend Developer",
-        company: "Amazon",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-20") },
-            { status: status.REJECTED, date: new Date("2025-09-25") }
-        ],
-        currentStatus: status.REJECTED
+        ApplicationID: "3",
+        Company: "Amazon",
+        DateAccepted: "",
+        DateApplied: "2025-09-20",
+        DateInterview: "",
+        DateRejected: "2025-09-25",
+        DateScreening: "",
+        DidCL: false,
+        JobURL: "https://amazon.jobs/jobs/3",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Backend Developer"
     },
     {
-        id: 4,
-        title: "Full Stack Developer",
-        company: "Microsoft",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-22") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-26") },
-            { status: status.INTERVIEW, date: new Date("2025-09-30") }
-        ],
-        currentStatus: status.INTERVIEW
+        ApplicationID: "4",
+        Company: "Microsoft",
+        DateAccepted: "",
+        DateApplied: "2025-09-22",
+        DateInterview: "2025-09-30",
+        DateRejected: "",
+        DateScreening: "2025-09-26",
+        DidCL: true,
+        JobURL: "https://careers.microsoft.com/jobs/4",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Full Stack Developer"
     },
     {
-        id: 5,
-        title: "DevOps Engineer",
-        company: "Netflix",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-25") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-29") },
-            { status: status.REJECTED, date: new Date("2025-10-02") }
-        ],
-        currentStatus: status.REJECTED
+        ApplicationID: "5",
+        Company: "Netflix",
+        DateAccepted: "",
+        DateApplied: "2025-09-25",
+        DateInterview: "",
+        DateRejected: "2025-10-02",
+        DateScreening: "2025-09-29",
+        DidCL: true,
+        JobURL: "https://jobs.netflix.com/jobs/5",
+        Notes: "",
+        ResumeURL: "",
+        Role: "DevOps Engineer"
     },
     {
-        id: 6,
-        title: "Data Engineer",
-        company: "Airbnb",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-28") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-10-02") }
-        ],
-        currentStatus: status.ONLINE_ASSESSMENT
+        ApplicationID: "6",
+        Company: "Airbnb",
+        DateAccepted: "",
+        DateApplied: "2025-09-28",
+        DateInterview: "",
+        DateRejected: "",
+        DateScreening: "2025-10-02",
+        DidCL: false,
+        JobURL: "https://careers.airbnb.com/jobs/6",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Data Engineer"
     },
     {
-        id: 7,
-        title: "Machine Learning Engineer",
-        company: "OpenAI",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-01") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-05") },
-            { status: status.INTERVIEW, date: new Date("2025-09-12") },
-            { status: status.OFFER, date: new Date("2025-09-20") }
-        ],
-        currentStatus: status.OFFER
+        ApplicationID: "7",
+        Company: "OpenAI",
+        DateAccepted: "2025-09-20",
+        DateApplied: "2025-09-01",
+        DateInterview: "2025-09-12",
+        DateRejected: "",
+        DateScreening: "2025-09-05",
+        DidCL: true,
+        JobURL: "https://openai.com/careers/jobs/7",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Machine Learning Engineer"
     },
     {
-        id: 8,
-        title: "iOS Developer",
-        company: "Apple",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-10-02") }
-        ],
-        currentStatus: status.APPLIED
+        ApplicationID: "8",
+        Company: "Apple",
+        DateAccepted: "",
+        DateApplied: "2025-10-02",
+        DateInterview: "",
+        DateRejected: "",
+        DateScreening: "",
+        DidCL: true,
+        JobURL: "https://jobs.apple.com/jobs/8",
+        Notes: "",
+        ResumeURL: "",
+        Role: "iOS Developer"
     },
     {
-        id: 9,
-        title: "Android Developer",
-        company: "Spotify",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-03") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-08") },
-            { status: status.INTERVIEW, date: new Date("2025-09-15") }
-        ],
-        currentStatus: status.INTERVIEW
+        ApplicationID: "9",
+        Company: "Spotify",
+        DateAccepted: "",
+        DateApplied: "2025-09-03",
+        DateInterview: "2025-09-15",
+        DateRejected: "",
+        DateScreening: "2025-09-08",
+        DidCL: false,
+        JobURL: "https://spotify.com/jobs/9",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Android Developer"
     },
     {
-        id: 10,
-        title: "Cloud Solutions Architect",
-        company: "Salesforce",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-10-04") }
-        ],
-        currentStatus: status.APPLIED
+        ApplicationID: "10",
+        Company: "Salesforce",
+        DateAccepted: "",
+        DateApplied: "2025-10-04",
+        DateInterview: "",
+        DateRejected: "",
+        DateScreening: "",
+        DidCL: true,
+        JobURL: "https://salesforce.com/careers/jobs/10",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Cloud Solutions Architect"
     },
     {
-        id: 11,
-        title: "Site Reliability Engineer",
-        company: "Uber",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-12") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-18") }
-        ],
-        currentStatus: status.ONLINE_ASSESSMENT
+        ApplicationID: "11",
+        Company: "Uber",
+        DateAccepted: "",
+        DateApplied: "2025-09-12",
+        DateInterview: "",
+        DateRejected: "",
+        DateScreening: "2025-09-18",
+        DidCL: false,
+        JobURL: "https://uber.com/careers/jobs/11",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Site Reliability Engineer"
     },
     {
-        id: 12,
-        title: "Security Engineer",
-        company: "Cloudflare",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-10") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-14") },
-            { status: status.INTERVIEW, date: new Date("2025-09-21") }
-        ],
-        currentStatus: status.INTERVIEW
+        ApplicationID: "12",
+        Company: "Cloudflare",
+        DateAccepted: "",
+        DateApplied: "2025-09-10",
+        DateInterview: "2025-09-21",
+        DateRejected: "",
+        DateScreening: "2025-09-14",
+        DidCL: true,
+        JobURL: "https://cloudflare.com/careers/jobs/12",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Security Engineer"
     },
     {
-        id: 13,
-        title: "QA Engineer",
-        company: "Shopify",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-08") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-12") },
-            { status: status.INTERVIEW, date: new Date("2025-09-18") },
-            { status: status.REJECTED, date: new Date("2025-09-22") }
-        ],
-        currentStatus: status.REJECTED
+        ApplicationID: "13",
+        Company: "Shopify",
+        DateAccepted: "",
+        DateApplied: "2025-09-08",
+        DateInterview: "2025-09-18",
+        DateRejected: "2025-09-22",
+        DateScreening: "2025-09-12",
+        DidCL: true,
+        JobURL: "https://shopify.com/careers/jobs/13",
+        Notes: "",
+        ResumeURL: "",
+        Role: "QA Engineer"
     },
     {
-        id: 14,
-        title: "Product Manager",
-        company: "Stripe",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-05") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-10") },
-            { status: status.INTERVIEW, date: new Date("2025-09-17") },
-            { status: status.OFFER, date: new Date("2025-09-24") }
-        ],
-        currentStatus: status.OFFER
+        ApplicationID: "14",
+        Company: "Stripe",
+        DateAccepted: "2025-09-24",
+        DateApplied: "2025-09-05",
+        DateInterview: "2025-09-17",
+        DateRejected: "",
+        DateScreening: "2025-09-10",
+        DidCL: true,
+        JobURL: "https://stripe.com/jobs/14",
+        Notes: "",
+        ResumeURL: "",
+        Role: "Product Manager"
     },
     {
-        id: 15,
-        title: "UI/UX Designer",
-        company: "Adobe",
-        statusHistory: [
-            { status: status.APPLIED, date: new Date("2025-09-01") },
-            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-06") },
-            { status: status.INTERVIEW, date: new Date("2025-09-13") }
-        ],
-        currentStatus: status.INTERVIEW
+        ApplicationID: "15",
+        Company: "Adobe",
+        DateAccepted: "",
+        DateApplied: "2025-09-01",
+        DateInterview: "2025-09-13",
+        DateRejected: "",
+        DateScreening: "2025-09-06",
+        DidCL: false,
+        JobURL: "https://adobe.com/careers/jobs/15",
+        Notes: "",
+        ResumeURL: "",
+        Role: "UI/UX Designer"
     }
 ]
