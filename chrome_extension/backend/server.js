@@ -36,6 +36,76 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Endpoint to upload job application
+app.post('/upload-job', upload.single('resume'), async (req, res) => {
+    try {
+        console.log('Job application upload started');
+        
+        const { role, company, jobURL, dateApplied, didCL, notes } = req.body;
+        const applicationID = uuidv4();
+
+        let resumeKey = null;
+        let resumeURL = null;
+
+        // Upload Resume to S3 if provided
+        if (req.file) {
+            console.log('Uploading resume to S3...');
+            resumeKey = `${applicationID}/resume-${req.file.originalname}`;
+            
+            await s3Client.send(new PutObjectCommand({
+                Bucket: 'job-applications-storage',
+                Key: resumeKey,
+                Body: req.file.buffer,
+                ContentType: req.file.mimetype
+            }));
+            
+            resumeURL = `s3://job-applications-storage/${resumeKey}`;
+            console.log('Resume uploaded successfully');
+        }
+
+        // Save metadata to DynamoDB
+        console.log('Saving to DynamoDB...');
+        const item = {
+            ApplicationID: applicationID,
+            Role: role || 'Unknown',
+            Company: company || 'Unknown',
+            JobURL: jobURL || '',
+            DidCL: didCL === 'true' || didCL === true
+        };
+
+        // Only add optional fields if they exist
+        if (dateApplied) item.DateApplied = dateApplied;
+        if (resumeURL) item.ResumeURL = resumeURL;
+        if (notes) item.Notes = notes;
+        
+        // Initialize other date fields as null (can be updated later)
+        item.DateScreening = null;
+        item.DateInterview = null;
+        item.DateAccepted = null;
+        item.DateRejected = null;
+
+        const params = {
+            TableName: 'JobApplications',
+            Item: item
+        };
+        
+        await docClient.send(new PutCommand(params));
+
+        console.log('Job application saved successfully');
+        res.json({ 
+            success: true, 
+            message: 'Job application tracked successfully!',
+            applicationID: applicationID
+        });
+    } catch (err) {
+        console.error('Error saving job application:', err);
+        res.status(500).json({ 
+            success: false, 
+            message: err.message || 'Failed to save job application'
+        });
+    }
+});
+
+// Legacy endpoint (keep for backward compatibility)
 app.post('/upload', upload.fields([{ name: 'resume' }, { name: 'coverLetter' }]), async (req, res) => {
     try {
         console.log('Request started');
