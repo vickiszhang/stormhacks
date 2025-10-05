@@ -736,7 +736,7 @@ export default function Dashboard() {
                           {renderEditableDate(
                             application,
                             "DateScreening",
-                            "Screen"
+                            "Screening"
                           )}
                         </TableCell>
                         <TableCell className="text-center">
