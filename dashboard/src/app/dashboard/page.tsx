@@ -253,7 +253,7 @@ export default function Dashboard() {
           <SheetHeader>
             <SheetTitle>Application Updates</SheetTitle>
           </SheetHeader>
-          <div className="py-6">
+          <div className="p-6 ">
             {pendingInterviews.length > 0 && currentFollowUpIndex < pendingInterviews.length && (
               <>
                 <p className="text-sm text-muted-foreground mb-2">
