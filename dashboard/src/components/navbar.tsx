@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 import { activityLog } from "@/data/activity-log";
@@ -104,20 +105,14 @@ export default function Navbar() {
             <div className="flex h-16 items-center justify-between">
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center gap-3 group">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#DB4C77] to-[#F9C6D7] shadow-lg transition-transform group-hover:scale-105">
-                <svg
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                >
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                    <circle cx="12" cy="10" r="3" />
-                </svg>
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl overflow-hidden shadow-lg transition-transform group-hover:scale-105">
+                <Image
+                    src="/logo_website.png"
+                    alt="Beacon Logo"
+                    width={40}
+                    height={40}
+                    className="object-cover"
+                />
                 </div>
                 <div className="flex flex-col">
                 <span className="text-lg font-bold bg-gradient-to-r from-[#DB4C77] to-[#10559A] bg-clip-text text-transparent">

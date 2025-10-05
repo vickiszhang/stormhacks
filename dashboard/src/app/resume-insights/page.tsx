@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { sampleApplicationData } from "@/data/sample-applications-data";
 
 interface ResumeVersion {
   id: string;
@@ -33,7 +32,6 @@ export default function ResumeInsightsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedComparison, setSelectedComparison] = useState<ResumeDiff | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [usingSampleData, setUsingSampleData] = useState(false);
 
   useEffect(() => {
     fetchResumes();
@@ -44,7 +42,7 @@ export default function ResumeInsightsPage() {
       // Fetch applications with resumes
       const response = await fetch("/api/dynamodb");
       const data = await response.json();
-      
+
       const fetchedApps = data.data || data.applications || [];
       const resumeData: ResumeVersion[] = fetchedApps
         .filter((app: any) => app.ResumeURL)
@@ -57,85 +55,89 @@ export default function ResumeInsightsPage() {
           resumeUrl: app.ResumeURL,
         }));
 
-      if (resumeData.length === 0) {
-        // Use sample data if no real data with resumes
-        const sampleResumes = sampleApplicationData
-          .filter(app => app.ResumeURL)
-          .map(app => ({
-            id: app.ApplicationID,
-            applicationId: app.ApplicationID,
-            company: app.Company,
-            role: app.Role,
-            dateApplied: app.DateApplied,
-            resumeUrl: app.ResumeURL,
-          }));
-        setResumes(sampleResumes);
-        setUsingSampleData(true);
-      } else {
-        setResumes(resumeData);
-        setUsingSampleData(false);
-      }
+      setResumes(resumeData);
     } catch (error) {
       console.error("Error fetching resumes:", error);
-      // Fallback to sample data on error
-      const sampleResumes = sampleApplicationData
-        .filter(app => app.ResumeURL)
-        .map(app => ({
-          id: app.ApplicationID,
-          applicationId: app.ApplicationID,
-          company: app.Company,
-          role: app.Role,
-          dateApplied: app.DateApplied,
-          resumeUrl: app.ResumeURL,
-        }));
-      setResumes(sampleResumes);
-      setUsingSampleData(true);
+      setResumes([]);
     } finally {
       setIsLoading(false);
     }
   };
 
   const extractTextFromPDF = async (resumeUrl: string): Promise<string> => {
-    // This would call your backend endpoint to extract text from PDF
-    // For now, return placeholder
-    return "Sample resume text content...";
+    try {
+      // Extract text from PDF using the backend API
+      const response = await fetch(`/api/extract-pdf?s3Url=${encodeURIComponent(resumeUrl)}`);
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error("Failed to extract text from PDF");
+      }
+
+      return data.text || "No text content found in PDF";
+    } catch (error) {
+      console.error("Error extracting text from PDF:", error);
+      return "Error loading resume content";
+    }
   };
 
   const compareResumes = async (resume1: ResumeVersion, resume2: ResumeVersion) => {
     setIsAnalyzing(true);
-    
+
     try {
-      // Extract text from both resumes
+      // Fetch both resume PDFs from S3
+      const [s3Response1, s3Response2] = await Promise.all([
+        fetch(`/api/s3?s3Url=${encodeURIComponent(resume1.resumeUrl)}`),
+        fetch(`/api/s3?s3Url=${encodeURIComponent(resume2.resumeUrl)}`)
+      ]);
+
+      const [s3Data1, s3Data2] = await Promise.all([
+        s3Response1.json(),
+        s3Response2.json()
+      ]);
+
+      if (!s3Data1.success || !s3Data2.success) {
+        throw new Error("Failed to fetch resumes from S3");
+      }
+
+      // Extract text from both resumes for text-based diff
       const text1 = await extractTextFromPDF(resume1.resumeUrl);
       const text2 = await extractTextFromPDF(resume2.resumeUrl);
 
-      // Simple text comparison (in production, use a proper diff library)
-      const lines1 = text1.split('\n');
-      const lines2 = text2.split('\n');
+      // Simple text comparison
+      const lines1 = text1.split('\n').filter(line => line.trim());
+      const lines2 = text2.split('\n').filter(line => line.trim());
 
       const added = lines2.filter(line => !lines1.includes(line));
       const removed = lines1.filter(line => !lines2.includes(line));
 
-      // Call Gemini API for AI analysis
+      // Call Gemini API with file attachments for AI analysis
       const aiResponse = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: `Analyze the differences between these two resume versions:
+          message: `I'm comparing two resume versions. Please analyze the differences between these two resumes:
 
-Resume 1 (for ${resume1.role} at ${resume1.company}):
-${text1}
+Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()}
+Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()}
 
-Resume 2 (for ${resume2.role} at ${resume2.company}):
-${text2}
+Please provide insights on:
+1. What specific changes were made (skills, experience, formatting, content modifications)
+2. How these changes might impact the effectiveness of the resume
+3. Whether the changes align better with the specific role and company
+4. Specific suggestions for improvement
 
-Provide insights on:
-1. What specific changes were made (skills, experience, formatting)
-2. How these changes might impact the application for this specific role
-3. Whether the changes align with the job requirements
-4. Suggestions for improvement
-
-Keep the response concise and actionable.`,
+Keep the response well-structured, concise, and actionable. do not include any asterisks * characters in the response.`,
+          files: [
+            {
+              fileData: s3Data1.data,
+              mimeType: s3Data1.contentType
+            },
+            {
+              fileData: s3Data2.data,
+              mimeType: s3Data2.contentType
+            }
+          ]
         }),
       });
 
@@ -150,7 +152,7 @@ Keep the response concise and actionable.`,
           removed: removed.slice(0, 5),
           modified: [],
         },
-        aiInsights: aiData.text || "AI analysis unavailable",
+        aiInsights: aiData.response || "AI analysis unavailable",
       };
 
       setSelectedComparison(diff);
@@ -166,6 +168,24 @@ Keep the response concise and actionable.`,
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
+  // Find the previous resume with a different URL
+  const findPreviousDifferentResume = (currentIndex: number): ResumeVersion | null => {
+    const currentResume = resumes[currentIndex];
+
+    // Loop through previous applications (chronologically earlier)
+    for (let i = currentIndex + 1; i < resumes.length; i++) {
+      const previousResume = resumes[i];
+
+      // If the resume URL is different, return it
+      if (previousResume.resumeUrl !== currentResume.resumeUrl) {
+        return previousResume;
+      }
+    }
+
+    // No different resume found
+    return null;
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -176,24 +196,6 @@ Keep the response concise and actionable.`,
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-      {/* Sample Data Banner */}
-      {usingSampleData && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-[#3CA2C8]/10 to-[#10559A]/10 border border-[#3CA2C8] rounded-lg">
-          <div className="flex items-start">
-            <svg className="w-5 h-5 text-[#10559A] mr-3 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div>
-              <h3 className="font-semibold text-[#10559A] mb-1">Using Sample Data</h3>
-              <p className="text-sm text-gray-600">
-                No resume data found in DynamoDB. Showing sample resumes to demonstrate features. 
-                Upload resumes with your applications to see AI-powered insights here.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-[#DB4C77] to-[#10559A] bg-clip-text text-transparent">
@@ -236,57 +238,56 @@ Keep the response concise and actionable.`,
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                  {resumes.map((resume, index) => (
-                    <div
-                      key={resume.id}
-                      className="border border-gray-200 rounded-lg p-4 hover:border-[#10559A] transition-colors cursor-pointer"
-                      onClick={() => {
-                        if (index > 0) {
-                          compareResumes(resumes[index - 1], resume);
-                        }
-                      }}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{resume.role}</h4>
-                          <p className="text-sm text-gray-600">{resume.company}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Applied: {formatDate(resume.dateApplied)}
-                          </p>
+                  {resumes.map((resume, index) => {
+                    const previousDifferentResume = findPreviousDifferentResume(index);
+
+                    return (
+                      <div
+                        key={resume.id}
+                        className="border border-gray-200 rounded-lg p-4 hover:border-[#10559A] transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-gray-900">{resume.role}</h4>
+                            <p className="text-sm text-gray-600">{resume.company}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              Applied: {formatDate(resume.dateApplied)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
+                              v{resumes.length - index}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
-                            v{resumes.length - index}
-                          </span>
-                        </div>
-                      </div>
-                      {index > 0 && (
-                        <Button
-                          size="sm"
-                          className="mt-3 w-full bg-gradient-to-r from-[#10559A] to-[#3CA2C8]"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            compareResumes(resumes[index - 1], resume);
-                          }}
-                        >
-                          <svg
-                            className="w-4 h-4 mr-2"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                        {previousDifferentResume && (
+                          <Button
+                            size="sm"
+                            className="mt-3 w-full bg-gradient-to-r from-[#10559A] to-[#3CA2C8]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              compareResumes(previousDifferentResume, resume);
+                            }}
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                            />
-                          </svg>
-                          Compare with previous
-                        </Button>
-                      )}
-                    </div>
-                  ))}
+                            <svg
+                              className="w-4 h-4 mr-2"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                              />
+                            </svg>
+                            Compare with previous
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

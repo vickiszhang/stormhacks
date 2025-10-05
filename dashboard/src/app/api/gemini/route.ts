@@ -5,7 +5,7 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, fileData, mimeType } = await req.json();
+    const { message, fileData, mimeType, files } = await req.json();
 
     if (!message) {
       return NextResponse.json(
@@ -17,8 +17,21 @@ export async function POST(req: NextRequest) {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
     let result;
-    if (fileData && mimeType) {
-      // Generate content with file upload
+
+    // Handle multiple files
+    if (files && Array.isArray(files) && files.length > 0) {
+      const parts = files.map((file: any) => ({
+        inlineData: {
+          data: file.fileData,
+          mimeType: file.mimeType,
+        },
+      }));
+      parts.push(message);
+
+      result = await model.generateContent(parts);
+    }
+    // Handle single file (backward compatibility)
+    else if (fileData && mimeType) {
       result = await model.generateContent([
         {
           inlineData: {
@@ -28,8 +41,9 @@ export async function POST(req: NextRequest) {
         },
         message,
       ]);
-    } else {
-      // Generate content with text only
+    }
+    // Text only
+    else {
       result = await model.generateContent(message);
     }
 

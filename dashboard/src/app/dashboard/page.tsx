@@ -1,17 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { ApplicationData, sampleApplicationData } from "@/data/sample-applications-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LightBulb } from "@/components/lightbulb";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   Sheet,
   SheetContent,
@@ -19,18 +12,9 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 export default function Dashboard() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [geminiResponse, setGeminiResponse] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
   const [isFollowUpDialogOpen, setIsFollowUpDialogOpen] = useState(false);
   const [pendingInterviews, setPendingInterviews] = useState<
     Array<{
@@ -202,27 +186,6 @@ export default function Dashboard() {
     }
   };
 
-  const testGemini = async () => {
-    try {
-      setIsDialogOpen(true);
-      setIsLoading(true);
-      setGeminiResponse("");
-
-      const response = await fetch("/api/gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Say hello" }),
-      });
-      const data = await response.json();
-      setGeminiResponse(data.response);
-      setIsLoading(false);
-    } catch (error) {
-      console.error("Error calling Gemini:", error);
-      setGeminiResponse("Error: Failed to get response from Gemini");
-      setIsLoading(false);
-    }
-  };
-
   const toggleRow = (applicationId: string) => {
     setExpandedRow(expandedRow === applicationId ? null : applicationId);
   };
@@ -297,9 +260,8 @@ export default function Dashboard() {
                 {applications.map((application) => {
                 const isExpanded = expandedRow === application.ApplicationID;
                 return (
-                  <>
+                  <React.Fragment key={application.ApplicationID}>
                   <TableRow
-                    key={application.ApplicationID}
                     onClick={() => toggleRow(application.ApplicationID)}
                     className={`${
                       application.DateRejected
@@ -397,27 +359,10 @@ export default function Dashboard() {
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-center">
-                      <TooltipProvider>
-                        <Tooltip >
-                          <TooltipTrigger asChild>
-                            <div onClick={(e) => {
-                              e.stopPropagation();
-                              testGemini();
-                            }} className="cursor-pointer">
-                              <LightBulb />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent className="bg-blue-dark text-white border-blue-dark">
-                            <p>Get insights on your application.</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    </TableCell>
                   </TableRow>
                   {isExpanded && (
                     <TableRow key={`${application.ApplicationID}-details`}>
-                      <TableCell colSpan={7} className="bg-gray-50 p-6">
+                      <TableCell colSpan={6} className="bg-gray-50 p-6">
                         <div className="space-y-4">
                           {/* Application Details Grid - First Row */}
                           <div className="grid grid-cols-3 gap-4">
@@ -477,7 +422,7 @@ export default function Dashboard() {
                       </TableCell>
                     </TableRow>
                   )}
-                  </>
+                  </React.Fragment>
                 );
               })}
             </TableBody>
@@ -485,24 +430,6 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Insights on your application</DialogTitle>
-            <p className="text-sm text-muted-foreground mt-2">
-              We are analyzing your application to provide insights on the most optimal resume strategies and improve your chances of success.
-            </p>
-          </DialogHeader>
-          <div className="py-4">
-            {isLoading ? (
-              <p className="text-muted-foreground">Loading...</p>
-            ) : (
-              <p>{geminiResponse}</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
 
       <Sheet open={isFollowUpDialogOpen} onOpenChange={setIsFollowUpDialogOpen}>
         <SheetContent side="right">
