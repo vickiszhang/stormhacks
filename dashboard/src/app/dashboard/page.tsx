@@ -113,20 +113,51 @@ export default function Dashboard() {
     }
   }, [applications]);
 
-  const handleFollowUpResponse = (
+  const handleFollowUpResponse = async (
     response: "no_update" | "offered" | "rejected"
   ) => {
     const currentInterview = pendingInterviews[currentFollowUpIndex];
     const today = new Date().toISOString().split("T")[0];
+    const currentApp = applications[currentInterview.index];
 
-    if (response === "offered") {
-      const updatedApps = [...applications];
-      updatedApps[currentInterview.index].DateAccepted = today;
-      setApplications(updatedApps);
-    } else if (response === "rejected") {
-      const updatedApps = [...applications];
-      updatedApps[currentInterview.index].DateRejected = today;
-      setApplications(updatedApps);
+    try {
+      if (response === "offered") {
+        // Update in database
+        await fetch("/api/dynamodb", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ApplicationID: currentApp.ApplicationID,
+            updates: {
+              DateAccepted: today,
+            },
+          }),
+        });
+
+        // Update local state
+        const updatedApps = [...applications];
+        updatedApps[currentInterview.index].DateAccepted = today;
+        setApplications(updatedApps);
+      } else if (response === "rejected") {
+        // Update in database
+        await fetch("/api/dynamodb", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ApplicationID: currentApp.ApplicationID,
+            updates: {
+              DateRejected: today,
+            },
+          }),
+        });
+
+        // Update local state
+        const updatedApps = [...applications];
+        updatedApps[currentInterview.index].DateRejected = today;
+        setApplications(updatedApps);
+      }
+    } catch (error) {
+      console.error("Error updating application status:", error);
     }
 
     // Move to next interview or close dialog
