@@ -127,7 +127,9 @@ Please provide insights on:
 3. Whether the changes align better with the specific role and company
 4. Specific suggestions for improvement
 
-Keep the response well-structured, concise, and actionable. do not include any asterisks * characters in the response.`,
+The response should be personal and directed towards the candidate, e.g. "you can improve ..." rather than "the candidate can improve"
+
+Keep the response well-structured, concise, and actionable. Do not include any asterisks * characters in the response.`,
           files: [
             {
               fileData: s3Data1.data,
@@ -152,7 +154,7 @@ Keep the response well-structured, concise, and actionable. do not include any a
           removed: removed.slice(0, 5),
           modified: [],
         },
-        aiInsights: aiData.response || "AI analysis unavailable",
+        aiInsights: aiData.response ? aiData.response.replace(/\*/g, '') : "AI analysis unavailable",
       };
 
       setSelectedComparison(diff);
