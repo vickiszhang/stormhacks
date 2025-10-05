@@ -25,6 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -138,6 +139,9 @@ export default function Dashboard() {
         const updatedApps = [...applications];
         updatedApps[currentInterview.index].DateAccepted = today;
         setApplications(updatedApps);
+
+        // Show success toast
+        toast.success(`Application for ${currentInterview.role} at ${currentInterview.company} has been updated`);
       } else if (response === "rejected") {
         // Update in database
         await fetch("/api/dynamodb", {
@@ -155,9 +159,13 @@ export default function Dashboard() {
         const updatedApps = [...applications];
         updatedApps[currentInterview.index].DateRejected = today;
         setApplications(updatedApps);
+
+        // Show success toast
+        toast.success(`Application for ${currentInterview.role} at ${currentInterview.company} has been updated`);
       }
     } catch (error) {
       console.error("Error updating application status:", error);
+      toast.error("Failed to update application status");
     }
 
     // Move to next interview or close dialog
