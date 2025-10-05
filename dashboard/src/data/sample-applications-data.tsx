@@ -9,6 +9,7 @@ export enum status {
 
 export const sampleApplicationData = [
     {
+        id: 1,
         title: "Software Developer",
         company: "Google",
         statusHistory: [
@@ -17,6 +18,7 @@ export const sampleApplicationData = [
         currentStatus: status.APPLIED
     },
     {
+        id: 2,
         title: "Frontend Engineer",
         company: "Meta",
         statusHistory: [
@@ -26,6 +28,7 @@ export const sampleApplicationData = [
         currentStatus: status.ONLINE_ASSESSMENT
     },
     {
+        id: 3,
         title: "Backend Developer",
         company: "Amazon",
         statusHistory: [
@@ -35,6 +38,7 @@ export const sampleApplicationData = [
         currentStatus: status.REJECTED
     },
     {
+        id: 4,
         title: "Full Stack Developer",
         company: "Microsoft",
         statusHistory: [
@@ -45,6 +49,7 @@ export const sampleApplicationData = [
         currentStatus: status.INTERVIEW
     },
     {
+        id: 5,
         title: "DevOps Engineer",
         company: "Netflix",
         statusHistory: [
@@ -55,6 +60,7 @@ export const sampleApplicationData = [
         currentStatus: status.REJECTED
     },
     {
+        id: 6,
         title: "Data Engineer",
         company: "Airbnb",
         statusHistory: [
@@ -64,6 +70,7 @@ export const sampleApplicationData = [
         currentStatus: status.ONLINE_ASSESSMENT
     },
     {
+        id: 7,
         title: "Machine Learning Engineer",
         company: "OpenAI",
         statusHistory: [
@@ -75,6 +82,7 @@ export const sampleApplicationData = [
         currentStatus: status.OFFER
     },
     {
+        id: 8,
         title: "iOS Developer",
         company: "Apple",
         statusHistory: [
@@ -83,6 +91,7 @@ export const sampleApplicationData = [
         currentStatus: status.APPLIED
     },
     {
+        id: 9,
         title: "Android Developer",
         company: "Spotify",
         statusHistory: [
@@ -93,6 +102,7 @@ export const sampleApplicationData = [
         currentStatus: status.INTERVIEW
     },
     {
+        id: 10,
         title: "Cloud Solutions Architect",
         company: "Salesforce",
         statusHistory: [
@@ -101,6 +111,7 @@ export const sampleApplicationData = [
         currentStatus: status.APPLIED
     },
     {
+        id: 11,
         title: "Site Reliability Engineer",
         company: "Uber",
         statusHistory: [
@@ -110,6 +121,7 @@ export const sampleApplicationData = [
         currentStatus: status.ONLINE_ASSESSMENT
     },
     {
+        id: 12,
         title: "Security Engineer",
         company: "Cloudflare",
         statusHistory: [
@@ -120,6 +132,7 @@ export const sampleApplicationData = [
         currentStatus: status.INTERVIEW
     },
     {
+        id: 13,
         title: "QA Engineer",
         company: "Shopify",
         statusHistory: [
@@ -131,6 +144,7 @@ export const sampleApplicationData = [
         currentStatus: status.REJECTED
     },
     {
+        id: 14,
         title: "Product Manager",
         company: "Stripe",
         statusHistory: [
@@ -142,6 +156,7 @@ export const sampleApplicationData = [
         currentStatus: status.OFFER
     },
     {
+        id: 15,
         title: "UI/UX Designer",
         company: "Adobe",
         statusHistory: [
