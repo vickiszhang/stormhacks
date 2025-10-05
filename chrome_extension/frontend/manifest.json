@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Job Application Tracker",
-  "description": "Track job applications with ease",
+  "name": "Beacon - Job Application Tracker",
+  "description": "Your job application navigator - track applications with ease",
   "version": "2.0",
   "permissions": ["storage"],
   "action": {

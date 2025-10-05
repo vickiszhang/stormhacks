@@ -9,15 +9,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function checkJobPage() {
   const contentDiv = document.getElementById('main-content');
-  contentDiv.innerHTML = '<div class="loading"><div class="loader"></div><div class="loading-text">Checking if this is a job application...</div></div>';
+  contentDiv.innerHTML = '<div class="loading"><div class="loader"></div><div class="loading-text">Checking page...</div></div>';
 
   chrome.tabs.query({ active: true, currentWindow: true }, async ([tab]) => {
+    // Add timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      contentDiv.innerHTML = `
+        <div class="status-banner error">
+          ⚠️ Timeout
+        </div>
+        <p style="text-align: center; color: #666; padding: 20px; font-size: 13px;">
+          Unable to scan this page. Try refreshing or navigating to a job posting.
+        </p>
+        <div style="text-align: center; margin-top: 20px;">
+          <button id="retry-btn" style="padding: 12px 24px; background: #3CA2C8; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+            🔄 Try Again
+          </button>
+        </div>
+      `;
+      document.getElementById('retry-btn')?.addEventListener('click', checkJobPage);
+    }, 3000); // 3 second timeout
+
     chrome.tabs.sendMessage(tab.id, { type: 'CHECK_JOB_PAGE' }, async (response) => {
+      clearTimeout(timeout);
+      
       if (chrome.runtime.lastError) {
         contentDiv.innerHTML = `
-          <div class="error-message">
-            Error: Could not scan page. Please refresh and try again.
+          <div class="status-banner error">
+            ⚠️ Error scanning page
           </div>
+          <p style="text-align: center; color: #666; padding: 20px; font-size: 13px;">
+            Please refresh the page and try again.
+          </p>
         `;
         return;
       }
@@ -25,10 +48,11 @@ async function checkJobPage() {
       if (!response || !response.isJobPage) {
         contentDiv.innerHTML = `
           <div class="status-banner not-job">
-            ℹ️ Not a job application page
+            Not a job posting
           </div>
-          <p style="text-align: center; color: #666; padding: 20px;">
-            Navigate to a job posting to track your application.
+          <p style="text-align: center; color: #666; padding: 20px; font-size: 13px; line-height: 1.6;">
+            This doesn't appear to be a job application page.<br><br>
+            Navigate to a job posting on sites like LinkedIn, Indeed, or company career pages to start tracking.
           </p>
         `;
         return;
@@ -54,12 +78,8 @@ function renderPromptForm() {
   
   contentDiv.innerHTML = `
     <div class="status-banner job-detected">
-      Job application detected!
+      ✅ Job posting detected!
     </div>
-
-    <p style="text-align: center; color: #666; margin: 15px 0; font-size: 13px;">
-      We've detected you're viewing a job posting. Would you like to track this application?
-    </p>
 
     <div class="form-group">
       <label>Role/Position</label>
@@ -79,13 +99,13 @@ function renderPromptForm() {
     <div class="form-group">
       <label>Date Applied</label>
       <input type="date" id="date-applied" value="${new Date().toISOString().split('T')[0]}" />
-      <p class="info-text">Leave blank if you haven't applied yet</p>
+      <p class="info-text">Leave as today or change if needed</p>
     </div>
 
     <div class="form-group">
       <label>Upload Resume (PDF)</label>
       <input type="file" id="resume-upload" accept=".pdf" />
-      <p class="info-text">Your resume will be stored securely in AWS S3</p>
+      <p class="info-text">Optional - stored securely in AWS S3</p>
     </div>
 
     <div class="form-group">
@@ -102,7 +122,7 @@ function renderPromptForm() {
 
     <div class="button-group">
       <button id="refresh-btn">🔄 Refresh</button>
-      <button id="save-btn">💾 Track Application</button>
+      <button id="save-btn">💾 Save Application</button>
     </div>
 
     <div id="message-area"></div>

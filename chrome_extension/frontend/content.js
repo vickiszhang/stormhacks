@@ -164,44 +164,46 @@ function showJobDetectedNotification() {
       position: fixed;
       top: 20px;
       right: 20px;
-      background: linear-gradient(135deg, #10559A 0%, #0d4680 100%);
+      background: linear-gradient(135deg, #10559A 0%, #3CA2C8 100%);
       color: white;
-      padding: 16px 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      padding: 18px 22px;
+      border-radius: 14px;
+      box-shadow: 0 6px 24px rgba(16, 85, 154, 0.35);
       z-index: 999999;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-      min-width: 300px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Arial, sans-serif;
+      min-width: 320px;
       max-width: 400px;
       animation: slideInRight 0.3s ease-out;
+      border: 3px solid #F9C6D7;
     ">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <span style="font-size: 24px;">📋</span>
-          <span style="font-weight: 600; font-size: 16px;">Job Application Detected!</span>
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-size: 26px;">🎯</span>
+          <span style="font-weight: 700; font-size: 17px; letter-spacing: 0.3px;">Job Detected!</span>
         </div>
         <button id="job-tracker-close" style="
-          background: rgba(255, 255, 255, 0.2);
+          background: rgba(255, 255, 255, 0.25);
           border: none;
           color: white;
           cursor: pointer;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 18px;
+          padding: 6px 10px;
+          border-radius: 6px;
+          font-size: 20px;
           line-height: 1;
-          transition: background 0.2s;
+          transition: all 0.2s;
+          font-weight: bold;
         ">×</button>
       </div>
-      <p style="margin: 0 0 12px 0; font-size: 13px; opacity: 0.95; line-height: 1.4;">
-        Click the extension icon to track this application
+      <p style="margin: 0 0 14px 0; font-size: 13px; opacity: 0.95; line-height: 1.5; font-weight: 500;">
+        Track this application with <strong>Beacon</strong>
       </p>
       <button id="job-tracker-action" style="
-        background: #F9C6D7;
-        color: #c2185b;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: 600;
+        background: #ffffff;
+        color: #DB4C77;
+        border: 2px solid #F9C6D7;
+        padding: 10px 18px;
+        border-radius: 8px;
+        font-weight: 700;
         cursor: pointer;
         width: 100%;
         font-size: 14px;
