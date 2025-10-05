@@ -441,6 +441,21 @@ export default function AnalyticsPage() {
 
               <div>
                 <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm font-medium">Application → Interview</span>
+                  <span className="text-2xl font-bold text-purple-600">
+                    {totalApplications > 0 ? ((interviews / totalApplications) * 100).toFixed(0) : 0}%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-purple-500 h-2 rounded-full"
+                    style={{ width: `${totalApplications > 0 ? (interviews / totalApplications) * 100 : 0}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-medium">Screening → Interview</span>
                   <span className="text-2xl font-bold text-[#10559A]">
                     {screening > 0 ? ((interviews / screening) * 100).toFixed(0) : 0}%

@@ -312,7 +312,7 @@ export default function Dashboard() {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      {application.DateScreening && (
+                      {application.DateScreening ? (
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">
                             Screen
@@ -321,10 +321,19 @@ export default function Dashboard() {
                             {formatDate(application.DateScreening)}
                           </div>
                         </div>
-                      )}
+                      ) : application.DateInterview || application.DateRejected ? (
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-1">
+                            Screen
+                          </div>
+                          <div className="text-sm font-medium">
+                            -
+                          </div>
+                        </div>
+                      ) : null}
                     </TableCell>
                     <TableCell className="text-center">
-                      {application.DateInterview && (
+                      {application.DateInterview ? (
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">
                             Interview
@@ -333,10 +342,19 @@ export default function Dashboard() {
                             {formatDate(application.DateInterview)}
                           </div>
                         </div>
-                      )}
+                      ) : application.DateRejected ? (
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-1">
+                            Interview
+                          </div>
+                          <div className="text-sm font-medium">
+                            -
+                          </div>
+                        </div>
+                      ) : null}
                     </TableCell>
                     <TableCell className="text-center">
-                      {application.DateAccepted && (
+                      {application.DateAccepted ? (
                         <div>
                           <div className="text-xs text-muted-foreground mb-1">
                             Offer
@@ -345,7 +363,16 @@ export default function Dashboard() {
                             {formatDate(application.DateAccepted)}
                           </div>
                         </div>
-                      )}
+                      ) : application.DateRejected ? (
+                        <div>
+                          <div className="text-xs text-muted-foreground mb-1">
+                            Offer
+                          </div>
+                          <div className="text-sm font-medium">
+                            -
+                          </div>
+                        </div>
+                      ) : null}
                     </TableCell>
                     <TableCell className="text-center">
                       {application.DateRejected && (
