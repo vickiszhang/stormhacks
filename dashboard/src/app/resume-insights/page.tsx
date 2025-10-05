@@ -65,7 +65,14 @@ export default function ResumeInsightsPage() {
           dateInterview: app.DateInterview,
         }));
 
-      setResumes(resumeData);
+      // Sort by DateApplied with most recent first
+      const sortedResumes = resumeData.sort((a, b) => {
+        const dateA = new Date(a.dateApplied || 0);
+        const dateB = new Date(b.dateApplied || 0);
+        return dateB.getTime() - dateA.getTime(); // Most recent first
+      });
+
+      setResumes(sortedResumes);
     } catch (error) {
       console.error("Error fetching resumes:", error);
       setResumes([]);
@@ -121,19 +128,40 @@ export default function ResumeInsightsPage() {
       const added = lines2.filter(line => !lines1.includes(line));
       const removed = lines1.filter(line => !lines2.includes(line));
 
+      // Get application statuses
+      const status1 = getApplicationStatus(resume1);
+      const status2 = getApplicationStatus(resume2);
+
+      // Build status context for the prompt
+      const statusContext = (() => {
+        if (status2.status === "offer" || status2.status === "interview") {
+          if (status1.status === "rejected") {
+            return `\n\nIMPORTANT CONTEXT: Resume 1 resulted in REJECTION, while Resume 2 led to ${status2.label.toUpperCase()}. This means Resume 2 was SUCCESSFUL. Please highlight the strong points and effective changes in Resume 2 that likely contributed to this positive outcome.`;
+          }
+          return `\n\nIMPORTANT CONTEXT: Resume 2 resulted in ${status2.label.toUpperCase()}, indicating SUCCESS. Please identify the strengths and effective elements in Resume 2.`;
+        }
+        if (status2.status === "rejected") {
+          if (status1.status === "offer" || status1.status === "interview") {
+            return `\n\nIMPORTANT CONTEXT: Resume 1 led to ${status1.label.toUpperCase()}, but Resume 2 resulted in REJECTION. Please identify what went wrong with Resume 2 and suggest improvements based on what worked in Resume 1.`;
+          }
+          return `\n\nIMPORTANT CONTEXT: Resume 2 resulted in REJECTION. Please provide constructive feedback on what could be improved to increase success chances.`;
+        }
+        return "";
+      })();
+
       // Call Gemini API with file attachments and job URL for AI analysis
       const promptMessage = resume2.jobUrl
         ? `I'm comparing two resume versions for a specific job application. Please analyze the job posting at the URL provided, then compare these two resumes:
 
-Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()}
-Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()}
-Job Posting URL: ${resume2.jobUrl}
+Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()} - Status: ${status1.label}
+Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()} - Status: ${status2.label}
+Job Posting URL: ${resume2.jobUrl}${statusContext}
 
 Please provide insights on:
 1. What specific changes were made between the two resumes (skills, experience, formatting, content modifications)
 2. How well the changes align with the job description and requirements from the job posting
 3. What strengths from the resume match the job requirements (be specific about which skills/experiences align)
-4. What improvements could be made to better match the job description
+4. If Resume 2 was successful (offer/interview), highlight what worked well; if rejected, suggest specific improvements
 5. Specific, actionable suggestions for optimization
 
 The response should be personal and directed towards the candidate, e.g. "you can improve ..." rather than "the candidate can improve"
@@ -141,13 +169,13 @@ The response should be personal and directed towards the candidate, e.g. "you ca
 Keep the response well-structured, concise to about 200-250 words, and actionable. Keep the response including tailored insights on the specific resumes that we are comparing, and company, and job function. Do not include any asterisks * characters in the response.`
         : `I'm comparing two resume versions. Please analyze the differences between these two resumes:
 
-Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()}
-Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()}
+Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()} - Status: ${status1.label}
+Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()} - Status: ${status2.label}${statusContext}
 
 Please provide insights on:
 1. What specific changes were made (skills, experience, formatting, content modifications)
 2. How these changes might impact the effectiveness of the resume
-3. Whether the changes align better with the specific role and company
+3. If Resume 2 was successful (offer/interview), highlight what worked well; if rejected, suggest specific improvements
 4. Specific suggestions for improvement
 
 The response should be personal and directed towards the candidate, e.g. "you can improve ..." rather than "the candidate can improve"
@@ -202,15 +230,15 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
 
   const getApplicationStatus = (resume: ResumeVersion) => {
     if (resume.dateAccepted) {
-      return { color: "bg-green-500", label: "Offer", textColor: "text-green-700" };
+      return { color: "bg-green-500", label: "Offer", textColor: "text-green-700", status: "offer" };
     }
     if (resume.dateRejected) {
-      return { color: "bg-red-500", label: "Rejected", textColor: "text-red-700" };
+      return { color: "bg-red-500", label: "Rejected", textColor: "text-red-700", status: "rejected" };
     }
     if (resume.dateInterview || resume.dateScreening) {
-      return { color: "bg-yellow-500", label: resume.dateInterview ? "Interview" : "Screening", textColor: "text-yellow-700" };
+      return { color: "bg-yellow-500", label: resume.dateInterview ? "Interview" : "Screening", textColor: "text-yellow-700", status: "interview" };
     }
-    return { color: "bg-blue-500", label: "Applied", textColor: "text-blue-700" };
+    return { color: "bg-blue-500", label: "Applied", textColor: "text-blue-700", status: "applied" };
   };
 
   // Find the previous resume with a different URL

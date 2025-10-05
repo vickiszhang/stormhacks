@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { ApplicationData, sampleApplicationData } from "@/data/sample-applications-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
@@ -736,11 +737,11 @@ export default function Dashboard() {
       </Card>
 
       <Sheet open={isFollowUpDialogOpen} onOpenChange={setIsFollowUpDialogOpen}>
-        <SheetContent side="right">
+        <SheetContent side="right" className="flex flex-col">
           <SheetHeader>
             <SheetTitle>Application Updates</SheetTitle>
           </SheetHeader>
-          <div className="p-6 ">
+          <div className="p-6 flex-1">
             {pendingInterviews.length > 0 &&
               currentFollowUpIndex < pendingInterviews.length && (
                 <>
@@ -789,6 +790,16 @@ export default function Dashboard() {
                   </div>
                 </>
               )}
+          </div>
+          {/* Logo at bottom */}
+          <div className="flex justify-center items-center pb-8">
+            <Image
+              src="/logo_website.png"
+              alt="Beacon Logo"
+              width={120}
+              height={120}
+              className="object-contain opacity-60"
+            />
           </div>
         </SheetContent>
       </Sheet>
