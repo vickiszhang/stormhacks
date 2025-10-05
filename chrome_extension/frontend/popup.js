@@ -200,8 +200,9 @@ async function checkJobPage() {
         jobURL: jobData.url || ''
       };
       
-      // Prompt user to track this application
-      renderPromptForm();
+      // Automatically run AI verification to get accurate role/company data
+      // This ensures better data quality than pattern-based extraction
+      await enhanceWithAI(tab.id);
     });
   });
 }
@@ -225,16 +226,31 @@ async function renderPromptForm() {
   let isDuplicate = false;
   
   try {
+    // Send URL, role, and company for comprehensive duplicate checking
     const checkResponse = await fetch('http://localhost:3000/check-duplicate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobURL: tempSavedData.jobURL })
+      body: JSON.stringify({ 
+        jobURL: tempSavedData.jobURL,
+        role: tempSavedData.role,
+        company: tempSavedData.company
+      })
     });
     
     const checkResult = await checkResponse.json();
     
     if (checkResult.isDuplicate) {
       isDuplicate = true;
+      
+      // Customize message based on match type
+      const matchTypeLabel = checkResult.matchType === 'url' 
+        ? 'Exact URL Match' 
+        : 'Same Role This Month';
+      
+      const warningIcon = checkResult.matchType === 'url' 
+        ? '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
+        : '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+      
       duplicateWarning = `
         <div style="
           background: linear-gradient(135deg, #FFF3CD 0%, #FFE5B4 100%);
@@ -247,17 +263,17 @@ async function renderPromptForm() {
         ">
           <div style="display: flex; align-items: start;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFC107" stroke-width="2" style="margin-right: 12px; flex-shrink: 0;">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-              <line x1="12" y1="9" x2="12" y2="13"/>
-              <line x1="12" y1="17" x2="12.01" y2="17"/>
+              ${warningIcon}
             </svg>
             <div>
-              <strong style="display: block; margin-bottom: 6px;">Possible Duplicate Detected</strong>
+              <strong style="display: block; margin-bottom: 6px;">${matchTypeLabel}</strong>
               <p style="margin: 0; line-height: 1.5;">
                 ${checkResult.message}
               </p>
               <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.9;">
-                You can still save this if you're reapplying or if this is a different position.
+                ${checkResult.matchType === 'url' 
+                  ? 'This is the exact same job posting you tracked before.' 
+                  : 'This might be the same position or a similar role. You can still save if this is different.'}
               </p>
             </div>
           </div>
@@ -395,7 +411,171 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// AI Verification function using Gemini
+// Enhanced AI extraction - automatically runs after job detection
+async function enhanceWithAI(tabId) {
+  const contentDiv = document.getElementById('main-content');
+  
+  // Show AI enhancement in progress
+  contentDiv.innerHTML = `
+    <div class="status-banner job-detected">
+      Job posting detected!
+    </div>
+    <div style="text-align: center; padding: 20px; color: #666;">
+      <div style="
+        width: 32px;
+        height: 32px;
+        margin: 0 auto 12px;
+        border: 3px solid #10559A;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      "></div>
+      <p style="font-size: 13px; margin-bottom: 4px;">🤖 AI extracting job details...</p>
+      <p style="font-size: 11px; color: #999;">Ensuring accurate role and company information</p>
+    </div>
+    <style>
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  `;
+
+  try {
+    // Get page content from content script
+    chrome.tabs.sendMessage(tabId, { type: 'GET_PAGE_CONTENT' }, async (contentResponse) => {
+      try {
+        if (chrome.runtime.lastError || !contentResponse || contentResponse.error) {
+          console.log('Could not get page content for AI enhancement, using pattern data');
+          renderPromptForm();
+          return;
+        }
+
+        if (!contentResponse.content || !contentResponse.url) {
+          console.log('Missing page data for AI enhancement, using pattern data');
+          renderPromptForm();
+          return;
+        }
+
+        const pageData = {
+          pageContent: contentResponse.content,
+          title: contentResponse.title || document.title || 'Unknown',
+          url: contentResponse.url
+        };
+
+        // Call AI verification endpoint
+        const response = await fetch('http://localhost:3000/ai-verify-job', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pageData)
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.isJobPage) {
+          // Store pattern-based extraction for comparison
+          const patternRole = tempSavedData.role;
+          const patternCompany = tempSavedData.company;
+          
+          // AI successfully verified it's a job page
+          console.log('✅ AI verification complete:', data);
+          console.log('Pattern data:', { role: patternRole, company: patternCompany });
+          console.log('AI data:', { role: data.role, company: data.company, confidence: data.confidence });
+          
+          // ALWAYS use AI data if confidence is reasonable (≥50%)
+          // AI is more reliable than pattern matching
+          if (data.confidence >= 50) {
+            // Update tempSavedData with AI-extracted information
+            tempSavedData = {
+              role: data.role || patternRole || '',
+              company: data.company || patternCompany || '',
+              jobURL: data.url || tempSavedData.jobURL
+            };
+            
+            // Update jobData as well
+            jobData.role = data.role || patternRole || '';
+            jobData.company = data.company || patternCompany || '';
+            
+            // Detect if AI corrected the pattern data
+            const roleCorrected = patternRole && data.role && patternRole !== data.role;
+            const companyCorrected = patternCompany && data.company && patternCompany !== data.company;
+            
+            let correctionNote = '';
+            if (roleCorrected || companyCorrected) {
+              correctionNote = '<div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e0e0e0;">';
+              correctionNote += '<p style="font-size: 11px; color: #666; margin: 0;">✓ AI verified and corrected:</p>';
+              if (roleCorrected) {
+                correctionNote += `<p style="font-size: 11px; color: #666; margin: 4px 0 0 0;">Role: <s>${patternRole}</s> → ${data.role}</p>`;
+              }
+              if (companyCorrected) {
+                correctionNote += `<p style="font-size: 11px; color: #666; margin: 4px 0 0 0;">Company: <s>${patternCompany}</s> → ${data.company}</p>`;
+              }
+              correctionNote += '</div>';
+            }
+            
+            // Show success message briefly
+            contentDiv.innerHTML = `
+              <div class="status-banner job-detected">
+                ✓ Job details verified by AI
+              </div>
+              <div style="background: #f0f9ff; border: 1px solid #3CA2C8; border-radius: 8px; padding: 12px; margin: 16px 0;">
+                <div style="font-size: 12px; color: #10559A;">
+                  <strong>🤖 AI Confidence: ${data.confidence}%</strong><br>
+                  <span style="opacity: 0.8;">Role: ${data.role || 'Not found'}</span><br>
+                  <span style="opacity: 0.8;">Company: ${data.company || 'Not found'}</span>
+                  ${correctionNote}
+                </div>
+              </div>
+              <div style="text-align: center; padding: 20px;">
+                <div class="loader" style="display: inline-block; margin-bottom: 12px;"></div>
+                <p style="font-size: 13px; color: #666;">Checking for duplicates...</p>
+              </div>
+            `;
+            
+            // Small delay to show the success message
+            setTimeout(() => {
+              renderPromptForm();
+            }, 1200);
+          } else {
+            // Low confidence, keep pattern data but warn user
+            console.log('⚠️ Low AI confidence, keeping pattern data');
+            contentDiv.innerHTML = `
+              <div class="status-banner job-detected">
+                Job posting detected
+              </div>
+              <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px; margin: 16px 0;">
+                <div style="font-size: 12px; color: #856404;">
+                  <strong>⚠️ Low AI Confidence: ${data.confidence}%</strong><br>
+                  <span style="opacity: 0.8;">Using pattern-based extraction. Please verify the data below.</span>
+                </div>
+              </div>
+              <div style="text-align: center; padding: 20px;">
+                <div class="loader" style="display: inline-block; margin-bottom: 12px;"></div>
+                <p style="font-size: 13px; color: #666;">Checking for duplicates...</p>
+              </div>
+            `;
+            setTimeout(() => {
+              renderPromptForm();
+            }, 800);
+          }
+        } else {
+          // AI says it's not a job page (low confidence or not verified)
+          console.log('⚠️ AI could not verify job page, using pattern extraction');
+          renderPromptForm();
+        }
+      } catch (error) {
+        console.log('AI enhancement error:', error);
+        // Fall back to pattern-based data
+        renderPromptForm();
+      }
+    });
+  } catch (error) {
+    console.log('AI enhancement outer error:', error);
+    // Fall back to pattern-based data
+    renderPromptForm();
+  }
+}
+
+// AI Verification function using Gemini (manual trigger from "AI Verify" button)
 async function verifyWithAI() {
   const contentDiv = document.getElementById('main-content');
   const header = document.querySelector('.header');
