@@ -25,6 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { toast } from "sonner";
 
 export default function Dashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -49,7 +50,7 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         setIsLoadingApplications(true);
-        const response = await fetch("/api/aws", {
+        const response = await fetch("/api/dynamodb", {
           method: "GET",
           headers: { "Content-Type": "application/json" },
         });
@@ -113,20 +114,58 @@ export default function Dashboard() {
     }
   }, [applications]);
 
-  const handleFollowUpResponse = (
+  const handleFollowUpResponse = async (
     response: "no_update" | "offered" | "rejected"
   ) => {
     const currentInterview = pendingInterviews[currentFollowUpIndex];
     const today = new Date().toISOString().split("T")[0];
+    const currentApp = applications[currentInterview.index];
 
-    if (response === "offered") {
-      const updatedApps = [...applications];
-      updatedApps[currentInterview.index].DateAccepted = today;
-      setApplications(updatedApps);
-    } else if (response === "rejected") {
-      const updatedApps = [...applications];
-      updatedApps[currentInterview.index].DateRejected = today;
-      setApplications(updatedApps);
+    try {
+      if (response === "offered") {
+        // Update in database
+        await fetch("/api/dynamodb", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ApplicationID: currentApp.ApplicationID,
+            updates: {
+              DateAccepted: today,
+            },
+          }),
+        });
+
+        // Update local state
+        const updatedApps = [...applications];
+        updatedApps[currentInterview.index].DateAccepted = today;
+        setApplications(updatedApps);
+
+        // Show success toast
+        toast.success(`Application for ${currentInterview.role} at ${currentInterview.company} has been updated`);
+      } else if (response === "rejected") {
+        // Update in database
+        await fetch("/api/dynamodb", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ApplicationID: currentApp.ApplicationID,
+            updates: {
+              DateRejected: today,
+            },
+          }),
+        });
+
+        // Update local state
+        const updatedApps = [...applications];
+        updatedApps[currentInterview.index].DateRejected = today;
+        setApplications(updatedApps);
+
+        // Show success toast
+        toast.success(`Application for ${currentInterview.role} at ${currentInterview.company} has been updated`);
+      }
+    } catch (error) {
+      console.error("Error updating application status:", error);
+      toast.error("Failed to update application status");
     }
 
     // Move to next interview or close dialog
