@@ -1,95 +1,87 @@
-import Image from "next/image";
+"use client";
+import { useState } from "react";
 import styles from "./page.module.css";
 
 export default function Home() {
+  const [jobData, setJobData] = useState({
+    position: "",
+    company: "",
+    location: "",
+    industry: "",
+    skills: [],
+    jobUrl: "",
+    didSubmitCL: false
+  });
+
+  const [isScanning, setIsScanning] = useState(false);
+
+  const handleScan = async () => {
+    setIsScanning(true);
+    // TODO: Add Gemini API integration to scan current page
+    // chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+    //   // Use tabs[0].url to get current URL
+    // });
+    setIsScanning(false);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // TODO: Add API call to save application
+  };
+
   return (
     <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.js</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+      <header className={styles.header}>
+        <h1>Job Application Tracker</h1>
+      </header>
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+      <button 
+        className={styles.scanButton}
+        onClick={handleScan}
+        disabled={isScanning}
+      >
+        {isScanning ? "Scanning..." : "Scan Job Page"}
+      </button>
+
+      <form className={styles.form} onSubmit={handleSubmit}>
+        <div className={styles.inputGroup}>
+          <label htmlFor="position">Position</label>
+          <input
+            id="position"
+            className={styles.input}
+            value={jobData.position}
+            onChange={(e) => setJobData({...jobData, position: e.target.value})}
+          />
         </div>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+
+        <div className={styles.inputGroup}>
+          <label htmlFor="company">Company</label>
+          <input
+            id="company"
+            className={styles.input}
+            value={jobData.company}
+            onChange={(e) => setJobData({...jobData, company: e.target.value})}
           />
-          Learn
-        </a>
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+        </div>
+
+        <div className={styles.checkbox}>
+          <input
+            type="checkbox"
+            id="coverLetter"
+            checked={jobData.didSubmitCL}
+            onChange={(e) => setJobData({...jobData, didSubmitCL: e.target.checked})}
           />
-          Examples
-        </a>
-        <a
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          <label htmlFor="coverLetter">Submitted Cover Letter</label>
+        </div>
+
+        <button 
+          type="submit" 
+          className={styles.submitButton}
+          disabled={!jobData.didSubmitCL}
         >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          Save Application
+        </button>
+      </form>
     </div>
   );
 }
