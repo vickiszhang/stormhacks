@@ -45,6 +45,7 @@ export default function Dashboard() {
   const [applications, setApplications] = useState<ApplicationData[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
   const [usingSampleData, setUsingSampleData] = useState(false);
+  const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -222,6 +223,40 @@ export default function Dashboard() {
     }
   };
 
+  const toggleRow = (applicationId: string) => {
+    setExpandedRow(expandedRow === applicationId ? null : applicationId);
+  };
+
+  const openResume = async (resumeUrl: string) => {
+    if (!resumeUrl) {
+      toast.error("No resume URL available");
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/s3?s3Url=${encodeURIComponent(resumeUrl)}`);
+      const data = await response.json();
+
+      if (data.success) {
+        // Convert base64 to blob and open in new window
+        const byteCharacters = atob(data.data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: data.contentType });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+      } else {
+        toast.error("Failed to load resume");
+      }
+    } catch (error) {
+      console.error("Error fetching resume:", error);
+      toast.error("Error loading resume");
+    }
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       {/* Sample Data Banner */}
@@ -260,17 +295,35 @@ export default function Dashboard() {
             <Table>
               <TableBody>
                 {applications.map((application) => {
+                const isExpanded = expandedRow === application.ApplicationID;
                 return (
+                  <>
                   <TableRow
                     key={application.ApplicationID}
+                    onClick={() => toggleRow(application.ApplicationID)}
                     className={`${
                       application.DateRejected
                         ? "bg-gray-100 text-muted-foreground"
                         : ""
-                    } h-16`}
+                    } h-16 cursor-pointer hover:bg-gray-50 transition-colors`}
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
+                        <svg
+                          className={`w-4 h-4 text-gray-500 transition-transform duration-200 ${
+                            isExpanded ? "rotate-90" : ""
+                          }`}
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
                         <Avatar>
                           <AvatarFallback className="bg-gradient-to-br from-[#DB4C77] to-[#F9C6D7] text-white">
                             {application.Role.charAt(0)}
@@ -348,7 +401,10 @@ export default function Dashboard() {
                       <TooltipProvider>
                         <Tooltip >
                           <TooltipTrigger asChild>
-                            <div onClick={testGemini} className="cursor-pointer">
+                            <div onClick={(e) => {
+                              e.stopPropagation();
+                              testGemini();
+                            }} className="cursor-pointer">
                               <LightBulb />
                             </div>
                           </TooltipTrigger>
@@ -359,6 +415,69 @@ export default function Dashboard() {
                       </TooltipProvider>
                     </TableCell>
                   </TableRow>
+                  {isExpanded && (
+                    <TableRow key={`${application.ApplicationID}-details`}>
+                      <TableCell colSpan={7} className="bg-gray-50 p-6">
+                        <div className="space-y-4">
+                          {/* Application Details Grid - First Row */}
+                          <div className="grid grid-cols-3 gap-4">
+                            {/* Cover Letter Status */}
+                            <div>
+                              <h3 className="font-semibold text-sm text-gray-700 mb-1">Cover Letter</h3>
+                              <p className="text-sm text-gray-600">
+                                {application.DidCL ? "✓ Submitted with cover letter" : "✗ No cover letter"}
+                              </p>
+                            </div>
+
+                            {/* Resume Link */}
+                            <div>
+                              <h3 className="font-semibold text-sm text-gray-700 mb-1">Resume</h3>
+                              {application.ResumeURL ? (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openResume(application.ResumeURL);
+                                  }}
+                                  className="text-sm text-[#10559A] hover:text-[#DB4C77] underline"
+                                >
+                                  View Resume →
+                                </button>
+                              ) : (
+                                <p className="text-sm text-gray-600">No resume</p>
+                              )}
+                            </div>
+
+                            {/* Job Posting URL */}
+                            <div>
+                              <h3 className="font-semibold text-sm text-gray-700 mb-1">Job Posting</h3>
+                              {application.JobURL ? (
+                                <a
+                                  href={application.JobURL}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-[#10559A] hover:text-[#DB4C77] underline"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  View Job Posting →
+                                </a>
+                              ) : (
+                                <p className="text-sm text-gray-600">No job posting</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Notes Section - Bottom */}
+                          {application.Notes && (
+                            <div>
+                              <h3 className="font-semibold text-sm text-gray-700 mb-2">Notes</h3>
+                              <p className="text-sm text-gray-600">{application.Notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  </>
                 );
               })}
             </TableBody>
