@@ -11,6 +11,7 @@ interface ResumeVersion {
   role: string;
   dateApplied: string;
   resumeUrl: string;
+  jobUrl?: string;
   extractedText?: string;
   analysisGenerated?: boolean;
   dateAccepted?: string;
@@ -57,6 +58,7 @@ export default function ResumeInsightsPage() {
           role: app.Role,
           dateApplied: app.DateApplied,
           resumeUrl: app.ResumeURL,
+          jobUrl: app.JobURL,
           dateAccepted: app.DateAccepted,
           dateRejected: app.DateRejected,
           dateScreening: app.DateScreening,
@@ -119,12 +121,25 @@ export default function ResumeInsightsPage() {
       const added = lines2.filter(line => !lines1.includes(line));
       const removed = lines1.filter(line => !lines2.includes(line));
 
-      // Call Gemini API with file attachments for AI analysis
-      const aiResponse = await fetch("/api/gemini", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: `I'm comparing two resume versions. Please analyze the differences between these two resumes:
+      // Call Gemini API with file attachments and job URL for AI analysis
+      const promptMessage = resume2.jobUrl
+        ? `I'm comparing two resume versions for a specific job application. Please analyze the job posting at the URL provided, then compare these two resumes:
+
+Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()}
+Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()}
+Job Posting URL: ${resume2.jobUrl}
+
+Please provide insights on:
+1. What specific changes were made between the two resumes (skills, experience, formatting, content modifications)
+2. How well the changes align with the job description and requirements from the job posting
+3. What strengths from the resume match the job requirements (be specific about which skills/experiences align)
+4. What improvements could be made to better match the job description
+5. Specific, actionable suggestions for optimization
+
+The response should be personal and directed towards the candidate, e.g. "you can improve ..." rather than "the candidate can improve"
+
+Keep the response well-structured, concise to about 200-250 words, and actionable. Keep the response including tailored insights on the specific resumes that we are comparing, and company, and job function. Do not include any asterisks * characters in the response.`
+        : `I'm comparing two resume versions. Please analyze the differences between these two resumes:
 
 Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()}
 Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()}
@@ -137,7 +152,14 @@ Please provide insights on:
 
 The response should be personal and directed towards the candidate, e.g. "you can improve ..." rather than "the candidate can improve"
 
-Keep the response well-structured, concise to about 200-250 words, and actionable. Keep the response including tailored insights on the specific resumes that we are comparing, and company, and job function. Do not include any asterisks * characters in the response.`,
+Keep the response well-structured, concise to about 200-250 words, and actionable. Keep the response including tailored insights on the specific resumes that we are comparing, and company, and job function. Do not include any asterisks * characters in the response.`;
+
+      const aiResponse = await fetch("/api/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: promptMessage,
+          url: resume2.jobUrl || undefined,
           files: [
             {
               fileData: s3Data1.data,

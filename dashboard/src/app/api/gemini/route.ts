@@ -5,7 +5,7 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY!);
 
 export async function POST(req: NextRequest) {
   try {
-    const { message, fileData, mimeType, files } = await req.json();
+    const { message, fileData, mimeType, files, url } = await req.json();
 
     if (!message) {
       return NextResponse.json(
@@ -18,8 +18,20 @@ export async function POST(req: NextRequest) {
 
     let result;
 
-    // Handle multiple files
-    if (files && Array.isArray(files) && files.length > 0) {
+    // Handle URL with files
+    if (url && files && Array.isArray(files) && files.length > 0) {
+      const parts = files.map((file: any) => ({
+        inlineData: {
+          data: file.fileData,
+          mimeType: file.mimeType,
+        },
+      }));
+      parts.push({ text: `Job Posting URL: ${url}\n\n${message}` });
+
+      result = await model.generateContent(parts);
+    }
+    // Handle multiple files only
+    else if (files && Array.isArray(files) && files.length > 0) {
       const parts = files.map((file: any) => ({
         inlineData: {
           data: file.fileData,
@@ -41,6 +53,10 @@ export async function POST(req: NextRequest) {
         },
         message,
       ]);
+    }
+    // Handle URL only
+    else if (url) {
+      result = await model.generateContent(`Job Posting URL: ${url}\n\n${message}`);
     }
     // Text only
     else {
