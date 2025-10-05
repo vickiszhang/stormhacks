@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand, UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, UpdateCommand, GetCommand, ScanCommand } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
 
 // AWS Config
@@ -23,45 +23,20 @@ const ddbClient = new DynamoDBClient({
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 
 
-// GET - fetch DynamoDB record
+// GET - fetch all DynamoDB records
 export async function GET(req: NextRequest) {
-            console.log("SDADSAD")
-
     try {
-        const { searchParams } = new URL(req.url);
-        const applicationID = "08acf876-1dba-4765-9723-b750a417bb0d";
+        const params = {
+            TableName: process.env.DYNAMODB_TABLE_NAME || 'JobApplications'
+        };
 
-        console.log(searchParams)
-        console.log(searchParams)
-        console.log(searchParams)
-
-        if (applicationID) {
-            const params = {
-                TableName: process.env.DYNAMODB_TABLE_NAME || 'JobApplications',
-                Key: {
-                    ApplicationID: applicationID
-                }
-            };
-
-            const result = await docClient.send(new GetCommand(params));
-
-            if (!result.Item) {
-                return NextResponse.json({
-                    success: false,
-                    message: 'Application not found'
-                }, { status: 404 });
-            }
-
-            return NextResponse.json({
-                success: true,
-                data: result.Item
-            });
-        }
+        const result = await docClient.send(new ScanCommand(params));
 
         return NextResponse.json({
-            success: false,
-            message: 'applicationID is required'
-        }, { status: 400 });
+            success: true,
+            data: result.Items || [],
+            count: result.Count || 0
+        });
 
     } catch (err: any) {
         console.error('Error fetching data:', err);

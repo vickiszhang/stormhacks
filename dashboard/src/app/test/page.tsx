@@ -15,7 +15,7 @@ export default function Test() {
       setIsLoading(true);
       setApiResponse("");
 
-      const response = await fetch('/api/aws?applicationID=08acf876-1dba-4765-9723-b750a417bb0d', {
+      const response = await fetch('/api/aws', {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
