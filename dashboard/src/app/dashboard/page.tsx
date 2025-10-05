@@ -19,6 +19,12 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export default function Dashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -253,9 +259,18 @@ export default function Dashboard() {
                       )}
                     </TableCell>
                     <TableCell className="text-center">
-                      <div onClick={testGemini} className="cursor-pointer">
-                        <LightBulb />
-                      </div>
+                      <TooltipProvider>
+                        <Tooltip >
+                          <TooltipTrigger asChild>
+                            <div onClick={testGemini} className="cursor-pointer">
+                              <LightBulb />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-blue-dark text-white border-blue-dark">
+                            <p>Get insights on your application.</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </TableCell>
                   </TableRow>
                 );
@@ -269,7 +284,10 @@ export default function Dashboard() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Analyzing </DialogTitle>
+            <DialogTitle>Insights on your application</DialogTitle>
+            <p className="text-sm text-muted-foreground mt-2">
+              We are analyzing your application to provide insights on the most optimal resume strategies and improve your chances of success.
+            </p>
           </DialogHeader>
           <div className="py-4">
             {isLoading ? (
