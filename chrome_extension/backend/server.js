@@ -3,7 +3,7 @@ require('dotenv').config();
 const express = require('express');
 const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
-const { DynamoDBDocumentClient, PutCommand } = require('@aws-sdk/lib-dynamodb');
+const { DynamoDBDocumentClient, PutCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const cors = require('cors');
@@ -101,6 +101,137 @@ app.post('/upload-job', upload.single('resume'), async (req, res) => {
         res.status(500).json({ 
             success: false, 
             message: err.message || 'Failed to save job application'
+        });
+    }
+});
+
+// Endpoint to check for duplicate applications
+app.post('/check-duplicate', async (req, res) => {
+    try {
+        const { jobURL } = req.body;
+        
+        if (!jobURL) {
+            return res.json({ 
+                isDuplicate: false,
+                message: 'No job URL provided'
+            });
+        }
+
+        // Scan DynamoDB for existing application with same job URL
+        const params = {
+            TableName: 'JobApplications',
+            FilterExpression: 'JobURL = :url',
+            ExpressionAttributeValues: {
+                ':url': jobURL
+            }
+        };
+
+        const result = await docClient.send(new ScanCommand(params));
+        
+        if (result.Items && result.Items.length > 0) {
+            const existingApp = result.Items[0];
+            return res.json({
+                isDuplicate: true,
+                existingApplication: {
+                    role: existingApp.Role,
+                    company: existingApp.Company,
+                    dateApplied: existingApp.DateApplied,
+                    applicationID: existingApp.ApplicationID
+                },
+                message: `You already tracked an application for ${existingApp.Role} at ${existingApp.Company} on ${existingApp.DateApplied || 'an earlier date'}.`
+            });
+        }
+
+        res.json({ 
+            isDuplicate: false,
+            message: 'No duplicate found'
+        });
+    } catch (err) {
+        console.error('Error checking for duplicate:', err);
+        res.status(500).json({ 
+            isDuplicate: false,
+            message: 'Error checking for duplicates'
+        });
+    }
+});
+
+// AI verification endpoint using Gemini to verify if page is a job posting
+app.post('/ai-verify-job', async (req, res) => {
+    try {
+        const { pageContent, url, title } = req.body;
+        
+        if (!pageContent || !url) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Page content and URL are required'
+            });
+        }
+
+        // Check if Gemini API key is configured
+        if (!process.env.GOOGLE_GENERATIVE_AI_API_KEY) {
+            return res.status(503).json({
+                success: false,
+                message: 'AI verification not configured. Please add GOOGLE_GENERATIVE_AI_API_KEY to your .env file.'
+            });
+        }
+
+        const { GoogleGenerativeAI } = require('@google/generative-ai');
+        const genAI = new GoogleGenerativeAI(process.env.GOOGLE_GENERATIVE_AI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+
+        // Truncate content if too long (Gemini has token limits)
+        const truncatedContent = pageContent.substring(0, 8000);
+
+        const prompt = `Analyze this webpage and determine if it's a job application/posting page.
+
+URL: ${url}
+Page Title: ${title || 'N/A'}
+Page Content (truncated):
+${truncatedContent}
+
+Task: Determine if this is a SPECIFIC job posting page (not a job search/listings page) and extract information.
+
+Respond ONLY with valid JSON in this exact format:
+{
+    "isJobPage": true/false,
+    "confidence": 0-100,
+    "role": "extracted job title or null",
+    "company": "extracted company name or null",
+    "reasoning": "brief explanation of why this is or isn't a job page"
+}
+
+Rules:
+- isJobPage should be TRUE only if this is a SPECIFIC job posting with a single role/position
+- isJobPage should be FALSE for job search pages, listings, career home pages, or non-job pages
+- Extract the exact job title/role if present (without company name)
+- Extract the company name if present
+- confidence: your certainty level (0-100)
+- Keep reasoning brief (max 1 sentence)`;
+
+        const result = await model.generateContent(prompt);
+        const responseText = result.response.text();
+        
+        // Parse JSON from response (handle potential markdown formatting)
+        let jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            throw new Error('Could not parse AI response');
+        }
+        
+        const aiAnalysis = JSON.parse(jsonMatch[0]);
+        
+        console.log('AI Analysis:', aiAnalysis);
+        
+        res.json({
+            success: true,
+            ...aiAnalysis,
+            url: url
+        });
+
+    } catch (err) {
+        console.error('Error in AI verification:', err);
+        res.status(500).json({ 
+            success: false,
+            message: err.message || 'AI verification failed'
         });
     }
 });

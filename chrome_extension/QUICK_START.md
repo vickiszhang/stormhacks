@@ -81,7 +81,17 @@ node server.js
 
 ---
 
-## 🎉 Done!
+## � QUICK START GUIDE - Beacon Job Tracker
+
+## 🚀 What Just Got Fixed
+
+**Problem**: AI Verify button showed error: "Page content and URL are required"
+
+**Root Cause**: Frontend sent field named `content`, backend expected `pageContent`
+
+**Solution**: ✅ Fixed field name + added validation + installed missing package
+
+---
 
 Your job application tracker is ready to use!
 

@@ -2,6 +2,14 @@ let jobData = null;
 let selectedResume = null;
 let tempSavedData = null; // Temporarily store data in case user is applying
 
+// Set flag when popup opens
+chrome.storage.local.set({ popupOpen: true });
+
+// Clear flag when popup closes
+window.addEventListener('unload', () => {
+  chrome.storage.local.set({ popupOpen: false });
+});
+
 // Initialize on popup open
 document.addEventListener('DOMContentLoaded', async () => {
   await checkJobPage();
@@ -149,16 +157,33 @@ async function checkJobPage() {
             This doesn't appear to be a job application page.<br><br>
             Navigate to a job posting on sites like LinkedIn, Indeed, or company career pages to start tracking.
           </p>
-          <div style="text-align: center; margin-top: 20px;">
+          <div style="text-align: center; margin-top: 20px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
             <button class="retry-btn standalone-refresh-btn">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
                 <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
               </svg>
               Refresh Detection
             </button>
+            <button class="ai-verify-btn" style="
+              background: linear-gradient(135deg, #DB4C77 0%, #F9C6D7 100%);
+              color: white;
+              border: 2px solid #DB4C77;
+              padding: 10px 16px;
+              border-radius: 10px;
+              font-weight: 600;
+              cursor: pointer;
+              font-size: 13px;
+              transition: all 0.2s;
+            ">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+              </svg>
+              AI Verify
+            </button>
           </div>
         `;
         document.querySelector('.retry-btn')?.addEventListener('click', checkJobPage);
+        document.querySelector('.ai-verify-btn')?.addEventListener('click', verifyWithAI);
         return;
       }
 
@@ -181,13 +206,75 @@ async function checkJobPage() {
   });
 }
 
-function renderPromptForm() {
+async function renderPromptForm() {
   const contentDiv = document.getElementById('main-content');
+  
+  // Show checking state
+  contentDiv.innerHTML = `
+    <div class="status-banner job-detected">
+      Job posting detected!
+    </div>
+    <div style="text-align: center; padding: 20px; color: #666;">
+      <div class="loader" style="display: inline-block; margin-bottom: 12px;"></div>
+      <p style="font-size: 13px;">Checking for duplicates...</p>
+    </div>
+  `;
+  
+  // Check for duplicate first
+  let duplicateWarning = '';
+  let isDuplicate = false;
+  
+  try {
+    const checkResponse = await fetch('http://localhost:3000/check-duplicate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobURL: tempSavedData.jobURL })
+    });
+    
+    const checkResult = await checkResponse.json();
+    
+    if (checkResult.isDuplicate) {
+      isDuplicate = true;
+      duplicateWarning = `
+        <div style="
+          background: linear-gradient(135deg, #FFF3CD 0%, #FFE5B4 100%);
+          border: 2px solid #FFC107;
+          color: #856404;
+          padding: 16px;
+          border-radius: 10px;
+          margin-bottom: 16px;
+          font-size: 13px;
+        ">
+          <div style="display: flex; align-items: start;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFC107" stroke-width="2" style="margin-right: 12px; flex-shrink: 0;">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+              <line x1="12" y1="9" x2="12" y2="13"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+            <div>
+              <strong style="display: block; margin-bottom: 6px;">Possible Duplicate Detected</strong>
+              <p style="margin: 0; line-height: 1.5;">
+                ${checkResult.message}
+              </p>
+              <p style="margin: 8px 0 0 0; font-size: 12px; opacity: 0.9;">
+                You can still save this if you're reapplying or if this is a different position.
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  } catch (error) {
+    console.log('Could not check for duplicates:', error);
+    // Continue without duplicate check if server is down
+  }
   
   contentDiv.innerHTML = `
     <div class="status-banner job-detected">
       Job posting detected!
     </div>
+
+    ${duplicateWarning}
 
     <div class="form-group">
       <label>Role/Position</label>
@@ -230,7 +317,7 @@ function renderPromptForm() {
 
     <div class="button-group">
       <button id="refresh-btn">Refresh</button>
-      <button id="save-btn">Save Application</button>
+      <button id="save-btn">${isDuplicate ? 'Save Anyway' : 'Save Application'}</button>
     </div>
 
     <div id="message-area"></div>
@@ -287,7 +374,7 @@ async function saveApplication() {
     const result = await response.json();
 
     if (result.success) {
-      messageArea.innerHTML = '<div class="success-message">✓ Application tracked successfully!</div>';
+      messageArea.innerHTML = '<div class="success-message">Application tracked successfully!</div>';
       setTimeout(() => {
         window.close();
       }, 2000);
@@ -306,4 +393,196 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// AI Verification function using Gemini
+async function verifyWithAI() {
+  const contentDiv = document.getElementById('main-content');
+  const header = document.querySelector('.header');
+  
+  contentDiv.innerHTML = `
+    <div style="text-align: center; padding: 40px 20px;">
+      <div style="
+        width: 48px;
+        height: 48px;
+        margin: 0 auto 20px;
+        border: 3px solid #DB4C77;
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      "></div>
+      <h3 style="color: #DB4C77; margin-bottom: 8px; font-size: 16px;">🤖 AI Analyzing Page...</h3>
+      <p style="color: #666; font-size: 13px;">Using Gemini AI to verify job posting</p>
+    </div>
+    <style>
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
+  `;
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    
+    // Get page content from content script
+    chrome.tabs.sendMessage(tab.id, { type: 'GET_PAGE_CONTENT' }, async (contentResponse) => {
+      try {
+        if (chrome.runtime.lastError || !contentResponse || contentResponse.error) {
+          throw new Error('Could not access page content. Please refresh the page and try again.');
+        }
+
+        // Validate we have the required data
+        if (!contentResponse.content || !contentResponse.url) {
+          throw new Error('Missing page data. Please refresh the page and try again.');
+        }
+
+        const pageData = {
+          pageContent: contentResponse.content,  // Backend expects 'pageContent', not 'content'
+          title: contentResponse.title || document.title || 'Unknown',
+          url: contentResponse.url
+        };
+
+        // Call AI verification endpoint
+        const response = await fetch('http://localhost:3000/ai-verify-job', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(pageData)
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.message || 'AI verification failed');
+        }
+
+        // Show results
+        if (data.isJobPage && data.confidence >= 70) {
+          // High confidence it's a job page
+          header.classList.remove('pink');
+          header.classList.add('blue');
+          
+          tempSavedData = {
+            role: data.role || 'Unknown Position',
+            company: data.company || 'Unknown Company',
+            jobURL: data.url || pageData.url
+          };
+          
+          contentDiv.innerHTML = `
+            <div class="status-banner job-detected">
+              ✓ AI Verified: Job Posting Detected!
+            </div>
+            <div style="background: #f0f9ff; border: 1px solid #3CA2C8; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+              <div style="display: flex; align-items: start; gap: 8px;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#10559A" style="flex-shrink: 0; margin-top: 2px;">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <div style="font-size: 12px; color: #10559A;">
+                  <strong>🤖 AI Confidence: ${data.confidence}%</strong><br>
+                  <span style="opacity: 0.8;">${data.reasoning}</span>
+                </div>
+              </div>
+            </div>
+          `;
+          
+          // Save jobData for form
+          jobData = {
+            isJobPage: true,
+            role: data.role,
+            company: data.company,
+            url: data.url
+          };
+          
+          // Show the form
+          renderPromptForm();
+        } else {
+          // Low confidence or not a job page
+          header.classList.remove('blue');
+          header.classList.add('pink');
+          
+          contentDiv.innerHTML = `
+            <div class="status-banner error">
+              AI Analysis: Not a Job Posting
+            </div>
+            <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 12px; margin: 16px 0;">
+              <div style="font-size: 13px; color: #856404;">
+                <strong>⚠️ Confidence: ${data.confidence}%</strong><br>
+                ${data.reasoning}
+              </div>
+            </div>
+            <p style="text-align: center; color: #666; font-size: 13px; padding: 0 20px;">
+              The AI determined this is not a specific job posting page. It may be a job listings page, search results, or non-job content.
+            </p>
+            <div style="text-align: center; margin-top: 20px; display: flex; gap: 8px; justify-content: center;">
+              <button class="retry-btn standalone-refresh-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                  <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+                </svg>
+                Back
+              </button>
+              <button class="ai-verify-btn" style="
+                background: linear-gradient(135deg, #DB4C77 0%, #F9C6D7 100%);
+                color: white;
+                border: 2px solid #DB4C77;
+                padding: 10px 16px;
+                border-radius: 10px;
+                font-weight: 600;
+                cursor: pointer;
+                font-size: 13px;
+                transition: all 0.2s;
+              ">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                Try Again
+              </button>
+            </div>
+          `;
+          document.querySelector('.retry-btn')?.addEventListener('click', checkJobPage);
+          document.querySelector('.ai-verify-btn')?.addEventListener('click', verifyWithAI);
+        }
+      } catch (error) {
+        console.error('AI verification error:', error);
+        
+        header.classList.remove('blue');
+        header.classList.add('pink');
+        
+        contentDiv.innerHTML = `
+          <div class="status-banner error">
+            AI Verification Failed
+          </div>
+          <p style="text-align: center; color: #666; padding: 20px; font-size: 13px; line-height: 1.6;">
+            ${error.message || 'Could not connect to AI service'}<br><br>
+            ${error.message?.includes('not configured') ? 
+              'Add your Gemini API key to the backend .env file.' : 
+              'Make sure the backend server is running on localhost:3000.'}
+          </p>
+          <div style="text-align: center; margin-top: 20px;">
+            <button class="retry-btn standalone-refresh-btn">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                <path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/>
+              </svg>
+              Back
+            </button>
+          </div>
+        `;
+        document.querySelector('.retry-btn')?.addEventListener('click', checkJobPage);
+      }
+    });
+  } catch (error) {
+    console.error('AI verification outer error:', error);
+    header.classList.remove('blue');
+    header.classList.add('pink');
+    contentDiv.innerHTML = `
+      <div class="status-banner error">
+        AI Verification Failed
+      </div>
+      <p style="text-align: center; color: #666; padding: 20px; font-size: 13px;">
+        ${error.message || 'Could not connect to AI service'}
+      </p>
+      <div style="text-align: center; margin-top: 20px;">
+        <button class="retry-btn standalone-refresh-btn">Back</button>
+      </div>
+    `;
+    document.querySelector('.retry-btn')?.addEventListener('click', checkJobPage);
+  }
 }
