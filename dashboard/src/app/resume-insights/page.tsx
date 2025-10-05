@@ -272,24 +272,22 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-semibold text-gray-900">{resume.role}</h4>
-                              <div className="flex items-center gap-1">
-                                <div className={`w-2 h-2 rounded-full ${status.color}`}></div>
-                                <span className={`text-xs font-medium ${status.textColor}`}>
-                                  {status.label}
-                                </span>
-                              </div>
-                            </div>
+                            <h4 className="font-semibold text-gray-900 mb-1">{resume.role}</h4>
                             <p className="text-sm text-gray-600">{resume.company}</p>
                             <p className="text-xs text-gray-500 mt-1">
                               Applied: {formatDate(resume.dateApplied)}
                             </p>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col items-end gap-2">
                             <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
                               v{resumes.length - index}
                             </span>
+                            <div className="flex items-center gap-1">
+                              <div className={`w-2 h-2 rounded-full ${status.color}`}></div>
+                              <span className={`text-xs font-medium ${status.textColor}`}>
+                                {status.label}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         {previousDifferentResume && (
