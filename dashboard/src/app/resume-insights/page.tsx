@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface ResumeVersion {
   id: string;
@@ -35,12 +36,45 @@ interface ResumeDiff {
 export default function ResumeInsightsPage() {
   const [resumes, setResumes] = useState<ResumeVersion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedComparison, setSelectedComparison] = useState<ResumeDiff | null>(null);
+  const [selectedComparison, setSelectedComparison] =
+    useState<ResumeDiff | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
     fetchResumes();
   }, []);
+
+  const openResume = async (resumeUrl: string) => {
+    if (!resumeUrl) {
+      toast.error("No resume URL available");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/s3?s3Url=${encodeURIComponent(resumeUrl)}`
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        // Convert base64 to blob and open in new window
+        const byteCharacters = atob(data.data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: data.contentType });
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+      } else {
+        toast.error("Failed to load resume");
+      }
+    } catch (error) {
+      console.error("Error fetching resume:", error);
+      toast.error("Error loading resume");
+    }
+  };
 
   const fetchResumes = async () => {
     try {
@@ -84,7 +118,9 @@ export default function ResumeInsightsPage() {
   const extractTextFromPDF = async (resumeUrl: string): Promise<string> => {
     try {
       // Extract text from PDF using the backend API
-      const response = await fetch(`/api/extract-pdf?s3Url=${encodeURIComponent(resumeUrl)}`);
+      const response = await fetch(
+        `/api/extract-pdf?s3Url=${encodeURIComponent(resumeUrl)}`
+      );
       const data = await response.json();
 
       if (!data.success) {
@@ -98,19 +134,22 @@ export default function ResumeInsightsPage() {
     }
   };
 
-  const compareResumes = async (resume1: ResumeVersion, resume2: ResumeVersion) => {
+  const compareResumes = async (
+    resume1: ResumeVersion,
+    resume2: ResumeVersion
+  ) => {
     setIsAnalyzing(true);
 
     try {
       // Fetch both resume PDFs from S3
       const [s3Response1, s3Response2] = await Promise.all([
         fetch(`/api/s3?s3Url=${encodeURIComponent(resume1.resumeUrl)}`),
-        fetch(`/api/s3?s3Url=${encodeURIComponent(resume2.resumeUrl)}`)
+        fetch(`/api/s3?s3Url=${encodeURIComponent(resume2.resumeUrl)}`),
       ]);
 
       const [s3Data1, s3Data2] = await Promise.all([
         s3Response1.json(),
-        s3Response2.json()
+        s3Response2.json(),
       ]);
 
       if (!s3Data1.success || !s3Data2.success) {
@@ -122,11 +161,11 @@ export default function ResumeInsightsPage() {
       const text2 = await extractTextFromPDF(resume2.resumeUrl);
 
       // Simple text comparison
-      const lines1 = text1.split('\n').filter(line => line.trim());
-      const lines2 = text2.split('\n').filter(line => line.trim());
+      const lines1 = text1.split("\n").filter((line) => line.trim());
+      const lines2 = text2.split("\n").filter((line) => line.trim());
 
-      const added = lines2.filter(line => !lines1.includes(line));
-      const removed = lines1.filter(line => !lines2.includes(line));
+      const added = lines2.filter((line) => !lines1.includes(line));
+      const removed = lines1.filter((line) => !lines2.includes(line));
 
       // Get application statuses
       const status1 = getApplicationStatus(resume1);
@@ -153,8 +192,12 @@ export default function ResumeInsightsPage() {
       const promptMessage = resume2.jobUrl
         ? `I'm comparing two resume versions for a specific job application. Please analyze the job posting at the URL provided, then compare these two resumes:
 
-Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()} - Status: ${status1.label}
-Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()} - Status: ${status2.label}
+Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(
+            resume1.dateApplied
+          ).toLocaleDateString()} - Status: ${status1.label}
+Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(
+            resume2.dateApplied
+          ).toLocaleDateString()} - Status: ${status2.label}
 Job Posting URL: ${resume2.jobUrl}${statusContext}
 
 Please provide insights on:
@@ -169,8 +212,12 @@ The response should be personal and directed towards the candidate, e.g. "you ca
 Keep the response well-structured, concise to about 200-250 words, and actionable. Keep the response including tailored insights on the specific resumes that we are comparing, and company, and job function. Do not include any asterisks * characters in the response.`
         : `I'm comparing two resume versions. Please analyze the differences between these two resumes:
 
-Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(resume1.dateApplied).toLocaleDateString()} - Status: ${status1.label}
-Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(resume2.dateApplied).toLocaleDateString()} - Status: ${status2.label}${statusContext}
+Resume 1: Applied for ${resume1.role} at ${resume1.company} on ${new Date(
+            resume1.dateApplied
+          ).toLocaleDateString()} - Status: ${status1.label}
+Resume 2: Applied for ${resume2.role} at ${resume2.company} on ${new Date(
+            resume2.dateApplied
+          ).toLocaleDateString()} - Status: ${status2.label}${statusContext}
 
 Please provide insights on:
 1. What specific changes were made (skills, experience, formatting, content modifications)
@@ -191,13 +238,13 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
           files: [
             {
               fileData: s3Data1.data,
-              mimeType: s3Data1.contentType
+              mimeType: s3Data1.contentType,
             },
             {
               fileData: s3Data2.data,
-              mimeType: s3Data2.contentType
-            }
-          ]
+              mimeType: s3Data2.contentType,
+            },
+          ],
         }),
       });
 
@@ -212,7 +259,9 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
           removed: removed.slice(0, 5),
           modified: [],
         },
-        aiInsights: aiData.response ? aiData.response.replace(/\*/g, '') : "AI analysis unavailable",
+        aiInsights: aiData.response
+          ? aiData.response.replace(/\*/g, "")
+          : "AI analysis unavailable",
       };
 
       setSelectedComparison(diff);
@@ -225,24 +274,50 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
   const getApplicationStatus = (resume: ResumeVersion) => {
     if (resume.dateAccepted) {
-      return { color: "bg-green-500", label: "Offer", textColor: "text-green-700", status: "offer" };
+      return {
+        color: "bg-green-500",
+        label: "Offer",
+        textColor: "text-green-700",
+        status: "offer",
+      };
     }
     if (resume.dateRejected) {
-      return { color: "bg-red-500", label: "Rejected", textColor: "text-red-700", status: "rejected" };
+      return {
+        color: "bg-red-500",
+        label: "Rejected",
+        textColor: "text-red-700",
+        status: "rejected",
+      };
     }
     if (resume.dateInterview || resume.dateScreening) {
-      return { color: "bg-yellow-500", label: resume.dateInterview ? "Interview" : "Screening", textColor: "text-yellow-700", status: "interview" };
+      return {
+        color: "bg-yellow-500",
+        label: resume.dateInterview ? "Interview" : "Screening",
+        textColor: "text-yellow-700",
+        status: "interview",
+      };
     }
-    return { color: "bg-blue-500", label: "Applied", textColor: "text-blue-700", status: "applied" };
+    return {
+      color: "bg-blue-500",
+      label: "Applied",
+      textColor: "text-blue-700",
+      status: "applied",
+    };
   };
 
   // Find the previous resume with a different URL
-  const findPreviousDifferentResume = (currentIndex: number): ResumeVersion | null => {
+  const findPreviousDifferentResume = (
+    currentIndex: number
+  ): ResumeVersion | null => {
     const currentResume = resumes[currentIndex];
 
     // Loop through previous applications (chronologically earlier)
@@ -295,7 +370,9 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
                 d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
               />
             </svg>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No resumes found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No resumes found
+            </h3>
             <p className="text-gray-500 mb-4">
               Upload resumes with your applications to start tracking changes
             </p>
@@ -312,7 +389,8 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
               <CardContent>
                 <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {resumes.map((resume, index) => {
-                    const previousDifferentResume = findPreviousDifferentResume(index);
+                    const previousDifferentResume =
+                      findPreviousDifferentResume(index);
                     const status = getApplicationStatus(resume);
 
                     return (
@@ -322,19 +400,34 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
-                            <h4 className="font-semibold text-gray-900 mb-1">{resume.role}</h4>
-                            <p className="text-sm text-gray-600">{resume.company}</p>
+                            <h4 className="font-semibold text-gray-900 mb-1">
+                              {resume.role}
+                            </h4>
+                            <p className="text-sm text-gray-600">
+                              {resume.company}
+                            </p>
                             <p className="text-xs text-gray-500 mt-1">
                               Applied: {formatDate(resume.dateApplied)}
                             </p>
                           </div>
                           <div className="flex flex-col items-end gap-2">
-                            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openResume(resume.resumeUrl);
+                              }}
+                              className="bg-blue-100 hover:bg-blue-200 text-blue-800 text-xs font-medium px-2 py-1 rounded cursor-pointer transition-colors"
+                            >
                               v{resumes.length - index}
-                            </span>
+                            </Button>
+
                             <div className="flex items-center gap-1">
-                              <div className={`w-2 h-2 rounded-full ${status.color}`}></div>
-                              <span className={`text-xs font-medium ${status.textColor}`}>
+                              <div
+                                className={`w-2 h-2 rounded-full ${status.color}`}
+                              ></div>
+                              <span
+                                className={`text-xs font-medium ${status.textColor}`}
+                              >
                                 {status.label}
                               </span>
                             </div>
@@ -390,12 +483,19 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
                     />
                   </svg>
                   <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">How it works</h4>
+                    <h4 className="font-semibold text-gray-900 mb-2">
+                      How it works
+                    </h4>
                     <ul className="text-sm text-gray-600 space-y-1">
-                      <li>• Click "Compare with previous" to analyze changes</li>
+                      <li>
+                        • Click "Compare with previous" to analyze changes
+                      </li>
                       <li>• AI extracts text from both PDF resumes</li>
                       <li>• Identifies added, removed, and modified content</li>
-                      <li>• Provides insights on how changes impact your application</li>
+                      <li>
+                        • Provides insights on how changes impact your
+                        application
+                      </li>
                       <li>• Suggests improvements for future versions</li>
                     </ul>
                   </div>
@@ -410,7 +510,9 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
               <Card className="border-0 shadow-lg">
                 <CardContent className="py-12 text-center">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#DB4C77] mx-auto mb-4"></div>
-                  <p className="text-gray-600">Analyzing resume changes with AI...</p>
+                  <p className="text-gray-600">
+                    Analyzing resume changes with AI...
+                  </p>
                 </CardContent>
               </Card>
             ) : selectedComparison ? (
@@ -418,18 +520,34 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
                 {/* Comparison Header */}
                 <Card className="border-0 shadow-lg bg-gradient-to-r from-[#10559A] to-[#3CA2C8] text-white">
                   <CardContent className="py-6">
-                    <h3 className="font-bold text-lg mb-2">Resume Comparison</h3>
+                    <h3 className="font-bold text-lg mb-2">
+                      Resume Comparison
+                    </h3>
                     <div className="flex items-center gap-4 text-sm">
                       <div className="flex-1">
                         <p className="opacity-90">From:</p>
-                        <p className="font-semibold">{selectedComparison.from.company}</p>
+                        <p className="font-semibold">
+                          {selectedComparison.from.company}
+                        </p>
                       </div>
-                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M14 5l7 7m0 0l-7 7m7-7H3"
+                        />
                       </svg>
                       <div className="flex-1 text-right">
                         <p className="opacity-90">To:</p>
-                        <p className="font-semibold">{selectedComparison.to.company}</p>
+                        <p className="font-semibold">
+                          {selectedComparison.to.company}
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -439,8 +557,18 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
                 <Card className="border-0 shadow-lg">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <svg className="w-5 h-5 text-[#DB4C77]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                      <svg
+                        className="w-5 h-5 text-[#DB4C77]"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                        />
                       </svg>
                       AI-Powered Insights
                     </CardTitle>
@@ -466,14 +594,27 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
                       {selectedComparison.changes.added.length > 0 && (
                         <div>
                           <h4 className="text-sm font-semibold text-green-700 mb-2 flex items-center gap-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 4v16m8-8H4"
+                              />
                             </svg>
                             Added Content
                           </h4>
                           <div className="space-y-1">
                             {selectedComparison.changes.added.map((line, i) => (
-                              <div key={i} className="bg-green-50 border-l-4 border-green-500 px-3 py-2 text-sm">
+                              <div
+                                key={i}
+                                className="bg-green-50 border-l-4 border-green-500 px-3 py-2 text-sm"
+                              >
                                 <code className="text-green-800">{line}</code>
                               </div>
                             ))}
@@ -484,26 +625,42 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
                       {selectedComparison.changes.removed.length > 0 && (
                         <div>
                           <h4 className="text-sm font-semibold text-red-700 mb-2 flex items-center gap-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M20 12H4"
+                              />
                             </svg>
                             Removed Content
                           </h4>
                           <div className="space-y-1">
-                            {selectedComparison.changes.removed.map((line, i) => (
-                              <div key={i} className="bg-red-50 border-l-4 border-red-500 px-3 py-2 text-sm">
-                                <code className="text-red-800">{line}</code>
-                              </div>
-                            ))}
+                            {selectedComparison.changes.removed.map(
+                              (line, i) => (
+                                <div
+                                  key={i}
+                                  className="bg-red-50 border-l-4 border-red-500 px-3 py-2 text-sm"
+                                >
+                                  <code className="text-red-800">{line}</code>
+                                </div>
+                              )
+                            )}
                           </div>
                         </div>
                       )}
 
-                      {selectedComparison.changes.added.length === 0 && selectedComparison.changes.removed.length === 0 && (
-                        <div className="text-center py-8 text-gray-500">
-                          <p>No significant changes detected</p>
-                        </div>
-                      )}
+                      {selectedComparison.changes.added.length === 0 &&
+                        selectedComparison.changes.removed.length === 0 && (
+                          <div className="text-center py-8 text-gray-500">
+                            <p>No significant changes detected</p>
+                          </div>
+                        )}
                     </div>
                   </CardContent>
                 </Card>
@@ -523,7 +680,9 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
                       <div className="text-3xl font-bold text-red-600">
                         {selectedComparison.changes.removed.length}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">Lines Removed</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Lines Removed
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
@@ -531,20 +690,21 @@ Keep the response well-structured, concise to about 200-250 words, and actionabl
             ) : (
               <Card className="border-0 shadow-lg">
                 <CardContent className="py-12 text-center">
-          <div className="flex justify-center items-center pb-8">
-            <Image
-              src="/logo_website.png"
-              alt="Beacon Logo"
-              width={120}
-              height={120}
-              className="object-contain opacity-60"
-            />
-          </div>
+                  <div className="flex justify-center items-center pb-8">
+                    <Image
+                      src="/logo_website.png"
+                      alt="Beacon Logo"
+                      width={120}
+                      height={120}
+                      className="object-contain opacity-60"
+                    />
+                  </div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">
                     Select resumes to compare
                   </h3>
                   <p className="text-gray-500">
-                    Click "Compare with previous" on any resume version to see AI-powered insights
+                    Click "Compare with previous" on any resume version to see
+                    AI-powered insights
                   </p>
                 </CardContent>
               </Card>

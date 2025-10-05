@@ -401,7 +401,9 @@ export default function AnalyticsPage() {
                       <div className="text-2xl font-bold text-[#10559A]">
                         {withCoverLetter}
                       </div>
-                      <div className="text-xs text-gray-500">With Cover Letter</div>
+                      <div className="text-xs text-gray-500">
+                        With Cover Letter
+                      </div>
                     </div>
                   </div>
                   <div className="flex-1">
@@ -409,7 +411,9 @@ export default function AnalyticsPage() {
                       <div className="text-2xl font-bold text-gray-400">
                         {withoutCoverLetter}
                       </div>
-                      <div className="text-xs text-gray-500">Without Cover Letter</div>
+                      <div className="text-xs text-gray-500">
+                        Without Cover Letter
+                      </div>
                     </div>
                   </div>
                 </div>
