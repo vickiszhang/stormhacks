@@ -59,7 +59,8 @@ export default function Insights() {
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">
-              No insights saved yet. Click the lightbulb on applications with interviews to generate insights.
+              No insights saved yet. Click the lightbulb on applications with
+              interviews to generate insights.
             </p>
           </CardContent>
         </Card>
@@ -76,7 +77,9 @@ export default function Insights() {
             <CardHeader>
               <CardTitle className="text-lg">{insight.Role}</CardTitle>
               <p className="text-sm text-muted-foreground">{insight.Company}</p>
-              <p className="text-xs text-muted-foreground mt-1">{formatDate(insight.CreatedAt)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {formatDate(insight.CreatedAt)}
+              </p>
             </CardHeader>
             <CardContent>
               <p className="text-sm whitespace-pre-wrap">{insight.Summary}</p>
