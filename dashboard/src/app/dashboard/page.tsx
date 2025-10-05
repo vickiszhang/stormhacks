@@ -177,23 +177,48 @@ export default function Dashboard() {
     }
   };
 
-  const testGemini = async () => {
+  const analyzeResume = async (applicationId: string) => {
     try {
       setIsDialogOpen(true);
       setIsLoading(true);
       setGeminiResponse("");
 
-      const response = await fetch("/api/gemini", {
+      // 1. Get application details from DynamoDB
+      const appResponse = await fetch(`/api/dynamodb?applicationId=${applicationId}`);
+      const appData = await appResponse.json();
+
+      if (!appData.success || !appData.data.ResumeURL) {
+        setGeminiResponse("Error: Resume URL not found for this application");
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Get resume file from S3
+      const s3Response = await fetch(`/api/s3?s3Url=${encodeURIComponent(appData.data.ResumeURL)}`);
+      const s3Data = await s3Response.json();
+
+      if (!s3Data.success) {
+        setGeminiResponse("Error: Failed to retrieve resume from S3");
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. Send to Gemini for analysis
+      const geminiResponse = await fetch("/api/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Say hello" }),
+        body: JSON.stringify({
+          message: "Please provide a short summary of this resume, highlighting key skills and experience.",
+          fileData: s3Data.data,
+          mimeType: s3Data.contentType
+        }),
       });
-      const data = await response.json();
-      setGeminiResponse(data.response);
+      const geminiData = await geminiResponse.json();
+      setGeminiResponse(geminiData.response);
       setIsLoading(false);
     } catch (error) {
-      console.error("Error calling Gemini:", error);
-      setGeminiResponse("Error: Failed to get response from Gemini");
+      console.error("Error analyzing resume:", error);
+      setGeminiResponse("Error: Failed to analyze resume");
       setIsLoading(false);
     }
   };
@@ -301,7 +326,7 @@ export default function Dashboard() {
                       <TooltipProvider>
                         <Tooltip >
                           <TooltipTrigger asChild>
-                            <div onClick={testGemini} className="cursor-pointer">
+                            <div onClick={() => analyzeResume(application.ApplicationID)} className="cursor-pointer">
                               <LightBulb />
                             </div>
                           </TooltipTrigger>

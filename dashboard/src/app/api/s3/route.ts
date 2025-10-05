@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // AWS S3 Config
 const s3Client = new S3Client({
@@ -11,7 +10,7 @@ const s3Client = new S3Client({
     }
 });
 
-// GET - fetch S3 object presigned URL
+// GET - fetch S3 object content
 export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
@@ -43,12 +42,39 @@ export async function GET(req: NextRequest) {
             Key: key
         });
 
-        // Generate a presigned URL that expires in 1 hour
-        const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+        // Fetch the actual file from S3
+        const response = await s3Client.send(command);
+
+        // Convert the stream to buffer
+        const chunks = [];
+        for await (const chunk of response.Body as any) {
+            chunks.push(chunk);
+        }
+        const buffer = Buffer.concat(chunks);
+
+        // Convert to base64 for JSON transport
+        const base64Data = buffer.toString('base64');
+
+        // Determine proper MIME type - default to PDF if octet-stream
+        let mimeType = response.ContentType || 'application/octet-stream';
+        if (mimeType === 'application/octet-stream') {
+            // Infer from file extension
+            if (key.toLowerCase().endsWith('.pdf')) {
+                mimeType = 'application/pdf';
+            } else if (key.toLowerCase().endsWith('.docx')) {
+                mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            } else if (key.toLowerCase().endsWith('.doc')) {
+                mimeType = 'application/msword';
+            } else if (key.toLowerCase().endsWith('.txt')) {
+                mimeType = 'text/plain';
+            }
+        }
 
         return NextResponse.json({
             success: true,
-            url: signedUrl,
+            data: base64Data,
+            contentType: mimeType,
+            contentLength: response.ContentLength,
             bucket: bucket,
             key: key
         });

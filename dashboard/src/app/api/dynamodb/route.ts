@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, ScanCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, ScanCommand, UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 
 // AWS DynamoDB Config
 const ddbClient = new DynamoDBClient({
@@ -13,9 +13,37 @@ const ddbClient = new DynamoDBClient({
 const docClient = DynamoDBDocumentClient.from(ddbClient);
 
 
-// GET - fetch all DynamoDB records
+// GET - fetch DynamoDB records (all or single by ApplicationID)
 export async function GET(req: NextRequest) {
     try {
+        const { searchParams } = new URL(req.url);
+        const applicationId = searchParams.get('applicationId');
+
+        // If applicationId is provided, get single record
+        if (applicationId) {
+            const params = {
+                TableName: process.env.DYNAMODB_TABLE_NAME || 'JobApplications',
+                Key: {
+                    ApplicationID: applicationId
+                }
+            };
+
+            const result = await docClient.send(new GetCommand(params));
+
+            if (!result.Item) {
+                return NextResponse.json({
+                    success: false,
+                    message: 'Application not found'
+                }, { status: 404 });
+            }
+
+            return NextResponse.json({
+                success: true,
+                data: result.Item
+            });
+        }
+
+        // Otherwise, fetch all records
         const params = {
             TableName: process.env.DYNAMODB_TABLE_NAME || 'JobApplications'
         };
