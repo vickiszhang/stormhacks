@@ -3,98 +3,152 @@ export enum status {
     APPLIED,
     ONLINE_ASSESSMENT,
     INTERVIEW,
-    OFFER
+    OFFER,
+    REJECTED
 }
 
 export const sampleApplicationData = [
     {
         title: "Software Developer",
         company: "Google",
-        dateApplied: new Date("2025-09-15"),
-        status: status.APPLIED
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-15") }
+        ],
+        currentStatus: status.APPLIED
     },
     {
         title: "Frontend Engineer",
         company: "Meta",
-        dateApplied: new Date("2025-09-18"),
-        status: status.ONLINE_ASSESSMENT
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-18") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-22") }
+        ],
+        currentStatus: status.ONLINE_ASSESSMENT
     },
     {
         title: "Backend Developer",
         company: "Amazon",
-        dateApplied: new Date("2025-09-20"),
-        status: status.APPLIED
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-20") },
+            { status: status.REJECTED, date: new Date("2025-09-25") }
+        ],
+        currentStatus: status.REJECTED
     },
     {
         title: "Full Stack Developer",
         company: "Microsoft",
-        dateApplied: new Date("2025-09-22"),
-        status: status.INTERVIEW
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-22") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-26") },
+            { status: status.INTERVIEW, date: new Date("2025-09-30") }
+        ],
+        currentStatus: status.INTERVIEW
     },
     {
         title: "DevOps Engineer",
         company: "Netflix",
-        dateApplied: new Date("2025-09-25"),
-        status: status.APPLIED
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-25") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-29") },
+            { status: status.REJECTED, date: new Date("2025-10-02") }
+        ],
+        currentStatus: status.REJECTED
     },
     {
         title: "Data Engineer",
         company: "Airbnb",
-        dateApplied: new Date("2025-09-28"),
-        status: status.ONLINE_ASSESSMENT
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-28") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-10-02") }
+        ],
+        currentStatus: status.ONLINE_ASSESSMENT
     },
     {
         title: "Machine Learning Engineer",
         company: "OpenAI",
-        dateApplied: new Date("2025-10-01"),
-        status: status.OFFER
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-01") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-05") },
+            { status: status.INTERVIEW, date: new Date("2025-09-12") },
+            { status: status.OFFER, date: new Date("2025-09-20") }
+        ],
+        currentStatus: status.OFFER
     },
     {
         title: "iOS Developer",
         company: "Apple",
-        dateApplied: new Date("2025-10-02"),
-        status: status.APPLIED
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-10-02") }
+        ],
+        currentStatus: status.APPLIED
     },
     {
         title: "Android Developer",
         company: "Spotify",
-        dateApplied: new Date("2025-10-03"),
-        status: status.INTERVIEW
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-03") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-08") },
+            { status: status.INTERVIEW, date: new Date("2025-09-15") }
+        ],
+        currentStatus: status.INTERVIEW
     },
     {
         title: "Cloud Solutions Architect",
         company: "Salesforce",
-        dateApplied: new Date("2025-10-04"),
-        status: status.APPLIED
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-10-04") }
+        ],
+        currentStatus: status.APPLIED
     },
     {
         title: "Site Reliability Engineer",
         company: "Uber",
-        dateApplied: new Date("2025-09-12"),
-        status: status.ONLINE_ASSESSMENT
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-12") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-18") }
+        ],
+        currentStatus: status.ONLINE_ASSESSMENT
     },
     {
         title: "Security Engineer",
         company: "Cloudflare",
-        dateApplied: new Date("2025-09-10"),
-        status: status.INTERVIEW
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-10") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-14") },
+            { status: status.INTERVIEW, date: new Date("2025-09-21") }
+        ],
+        currentStatus: status.INTERVIEW
     },
     {
         title: "QA Engineer",
         company: "Shopify",
-        dateApplied: new Date("2025-09-08"),
-        status: status.APPLIED
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-08") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-12") },
+            { status: status.INTERVIEW, date: new Date("2025-09-18") },
+            { status: status.REJECTED, date: new Date("2025-09-22") }
+        ],
+        currentStatus: status.REJECTED
     },
     {
         title: "Product Manager",
         company: "Stripe",
-        dateApplied: new Date("2025-09-05"),
-        status: status.OFFER
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-05") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-10") },
+            { status: status.INTERVIEW, date: new Date("2025-09-17") },
+            { status: status.OFFER, date: new Date("2025-09-24") }
+        ],
+        currentStatus: status.OFFER
     },
     {
         title: "UI/UX Designer",
         company: "Adobe",
-        dateApplied: new Date("2025-09-01"),
-        status: status.INTERVIEW
+        statusHistory: [
+            { status: status.APPLIED, date: new Date("2025-09-01") },
+            { status: status.ONLINE_ASSESSMENT, date: new Date("2025-09-06") },
+            { status: status.INTERVIEW, date: new Date("2025-09-13") }
+        ],
+        currentStatus: status.INTERVIEW
     }
 ]
